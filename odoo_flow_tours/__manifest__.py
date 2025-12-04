@@ -5,7 +5,7 @@
         Technical module that adds a guided tour (Onboarding) to test the complete flow:
         CRM -> Sale -> Delivery.
     """,
-    'author': "Antigravity",
+    'author': "JPlinx",
     'category': 'Technical',
     'version': '0.1',
     'depends': ['base', 'web', 'crm', 'sale_management', 'stock'],
