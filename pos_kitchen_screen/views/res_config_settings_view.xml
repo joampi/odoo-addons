@@ -9,16 +9,16 @@
                 <block title="Kitchen Screen" id="pos_kitchen_screen_section">
                     <setting string="SLA Management" help="Define time thresholds for orders.">
                         <div class="row">
-                            <label for="kitchen_sla_warning" class="col-lg-3 o_light_label"/>
-                            <field name="kitchen_sla_warning"/>
+                            <label for="pos_kitchen_sla_warning" class="col-lg-3 o_light_label"/>
+                            <field name="pos_kitchen_sla_warning"/>
                         </div>
                         <div class="row">
-                            <label for="kitchen_sla_critical" class="col-lg-3 o_light_label"/>
-                            <field name="kitchen_sla_critical"/>
+                            <label for="pos_kitchen_sla_critical" class="col-lg-3 o_light_label"/>
+                            <field name="pos_kitchen_sla_critical"/>
                         </div>
                     </setting>
                     <setting string="Notifications" help="Enable audio alerts for new orders.">
-                        <field name="enable_sound_notifications"/>
+                        <field name="pos_enable_sound_notifications"/>
                     </setting>
                 </block>
             </xpath>
