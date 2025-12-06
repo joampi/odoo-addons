@@ -37,7 +37,7 @@
 
 /* Sidebar */
 .ks-sidebar {
-    width: 25%;
+    width: 20%;
     background-color: #fff;
     border-right: 1px solid #dee2e6;
     display: flex;
@@ -91,7 +91,7 @@
 
 /* Grid Area */
 .ks-grid {
-    width: 75%;
+    width: 80%;
     padding: 20px;
     overflow-y: auto;
     background-color: #eef2f6;
@@ -253,7 +253,123 @@
     color: #333;
 }
 
-.ks-display-list button {
+font-size: 1.1rem;
+padding: 12px;
+}
+
+/* Collapsed Sidebar */
+.kitchen-screen-container.ks-sidebar-collapsed .ks-sidebar {
+    width: 50px;
+    padding: 0;
+}
+
+.kitchen-screen-container.ks-sidebar-collapsed .ks-grid {
+    width: calc(100% - 50px);
+}
+
+.kitchen-screen-container.ks-sidebar-collapsed .ks-sidebar-title {
+    padding: 15px 5px;
+    text-align: center;
+}
+
+/* MODAL / POPUP */
+.ks-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1050;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.ks-modal-content {
+    background: white;
+    width: 60%;
+    max-width: 800px;
+    max-height: 90vh;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.ks-modal-header {
+    background: #f8f9fa;
+    padding: 20px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ks-modal-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #343a40;
+}
+
+.ks-modal-close {
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.ks-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.ks-modal-footer {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    text-align: right;
+}
+
+.ks-info-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #e9ecef;
+    border-radius: 8px;
+}
+
+.ks-info-label {
+    font-weight: bold;
+    color: #495057;
+    margin-right: 5px;
+}
+
+/* Filter Buttons */
+.ks-filters .btn {
     font-size: 1.1rem;
-    padding: 12px;
+    padding: 8px 16px;
+    margin-right: 5px;
+}
+
+.ks-filters .btn-primary {
+    background-color: #2c3e50;
+    /* Match header */
+    border-color: #2c3e50;
 }

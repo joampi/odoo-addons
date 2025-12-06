@@ -19,6 +19,7 @@ class KitchenOrderCard extends Component {
         onClickLine: Function,
         onResetOrder: { type: Function, optional: true },
         onClearOrder: { type: Function, optional: true },
+        onSelectOrder: { type: Function, optional: true },
     };
 
     setup() {
@@ -89,6 +90,7 @@ class KitchenMainComponent extends Component {
             currentDisplayConfig: null, // Full object of selected display
             filterProduct: null,
             filterStage: null, // ID of stage to filter by
+            selectedOrder: null, // For Popup
             sidebarCollapsed: false,
             audioEnabled: false,
         });
@@ -223,7 +225,19 @@ class KitchenMainComponent extends Component {
     }
 
     toggleStageFilter(stageId) {
-        this.state.filterStage = (this.state.filterStage === stageId) ? null : stageId;
+        if (stageId === 'all') {
+            this.state.filterStage = null;
+        } else {
+            this.state.filterStage = (this.state.filterStage === stageId) ? null : stageId;
+        }
+    }
+
+    selectOrder(order) {
+        this.state.selectedOrder = order;
+    }
+
+    closePopup() {
+        this.state.selectedOrder = null;
     }
 
     // --- Data Loading ---
@@ -489,7 +503,19 @@ class KitchenMainComponent extends Component {
     }
 
     toggleStageFilter(stageId) {
-        this.state.filterStage = (this.state.filterStage === stageId) ? null : stageId;
+        if (stageId === 'all') {
+            this.state.filterStage = null;
+        } else {
+            this.state.filterStage = (this.state.filterStage === stageId) ? null : stageId;
+        }
+    }
+
+    selectOrder(order) {
+        this.state.selectedOrder = order;
+    }
+
+    closePopup() {
+        this.state.selectedOrder = null;
     }
 
     toggleSidebar() {

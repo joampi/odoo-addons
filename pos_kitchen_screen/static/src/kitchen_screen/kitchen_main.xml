@@ -40,6 +40,11 @@
                     
                     <!-- STAGE FILTERS -->
                     <div class="ks-filters btn-group mx-3">
+                         <button class="btn btn-sm" 
+                                 t-att-class="!state.filterStage ? 'btn-primary' : 'btn-outline-secondary'"
+                                 t-on-click="() => this.toggleStageFilter('all')">
+                             All
+                         </button>
                          <t t-foreach="state.stages" t-as="stage" t-key="stage.id">
                              <button class="btn btn-sm" 
                                      t-att-class="state.filterStage === stage.id ? 'btn-primary' : 'btn-outline-secondary'"
@@ -97,6 +102,7 @@
                                         onClickLine="(o, l) => this.clickLine(o, l)"
                                         onResetOrder="(o) => this.resetOrder(o)"
                                         onClearOrder="(o) => this.clearOrder(o)"
+                                        onSelectOrder="(o) => this.selectOrder(o)"
                                     />
                                 </t>
                             </div>
@@ -105,6 +111,54 @@
                 </div>
             </t>
         </div>
+        
+        <!-- MODAL POPUP -->
+        <t t-if="state.selectedOrder">
+            <div class="ks-modal-overlay" t-on-click.self="closePopup">
+                <div class="ks-modal-content">
+                    <div class="ks-modal-header">
+                        <div class="ks-modal-title">
+                            <span t-esc="state.selectedOrder.name"/>
+                            <span t-if="state.selectedOrder.table" class="badge bg-secondary ms-2"><span t-esc="state.selectedOrder.table"/></span>
+                        </div>
+                        <button class="ks-modal-close" t-on-click="closePopup"><i class="fa fa-times"/></button>
+                    </div>
+                    <div class="ks-modal-body">
+                         <div class="ks-info-section">
+                             <span class="ks-info-label">Time:</span> <span t-esc="state.selectedOrder.date_order"/>
+                         </div>
+                         <div class="ks-info-section" t-if="state.selectedOrder.note">
+                             <div class="ks-info-label">Notes:</div>
+                             <div class="text-danger"><t t-esc="state.selectedOrder.note"/></div>
+                         </div>
+                         
+                         <table class="table table-striped">
+                             <thead>
+                                 <tr>
+                                     <th>Qty</th>
+                                     <th>Product</th>
+                                     <th>Stage</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 <tr t-foreach="state.selectedOrder.lines" t-as="line" t-key="line.id">
+                                     <td><strong t-esc="line.qty"/></td>
+                                     <td><span t-esc="line.product_id[1]"/></td>
+                                     <td>
+                                         <span t-if="line.kitchen_stage_id" class="badge bg-info">
+                                             <t t-esc="line.kitchen_stage_id[1]"/>
+                                         </span>
+                                     </td>
+                                 </tr>
+                             </tbody>
+                         </table>
+                    </div>
+                    <div class="ks-modal-footer">
+                        <button class="btn btn-secondary" t-on-click="closePopup">Close</button>
+                    </div>
+                </div>
+            </div>
+        </t>
     </t>
 
     <!-- Order Card Template -->
@@ -117,7 +171,12 @@
                         <i class="fa fa-calendar"/> <t t-esc="props.order.date_order"/>
                     </div>
                 </div>
-                <div class="ks-table-name" t-if="props.order.table"><t t-esc="props.order.table"/></div>
+                <div class="d-flex align-items-center">
+                    <div class="ks-table-name me-2" t-if="props.order.table"><t t-esc="props.order.table"/></div>
+                    <button class="btn btn-sm btn-info text-white" t-on-click="() => props.onSelectOrder(props.order)">
+                        <i class="fa fa-info-circle"/>
+                    </button>
+                </div>
             </div>
             <div class="ks-card-body">
                 <t t-foreach="props.order.lines" t-as="line" t-key="line.id">
