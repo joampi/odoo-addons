@@ -202,77 +202,148 @@ class KitchenMainComponent extends Component {
 
             console.log("Loading orders with domain:", domain);
             const orders = await this.orm.searchRead("pos.order", domain, ["name", "pos_reference", "date_order", "lines"], { limit: 20, order: "date_order desc" });
-            console.log("Fetched orders:", orders.length, orders);
+            console.log("Fetched orders from DB:", orders.length);
 
             // Collect all line IDs
             const lineIds = orders.flatMap(o => o.lines);
-            if (lineIds.length) {
-                // We need 'product_id' (to check category) and 'qty'
-                // NOTE: To filter by category strictly, we need product.pos_categ_id. 
-                // searchRead on pos.order.line gives product_id as (id, name).
-                // We will fetch product info separately or rely on checking product_id if we have a way.
-                // Standard approach: Fetch lines, then Fetch Product Info for those lines.
-
+            if (lineIds.length > 0) {
+                // Fetch line details
                 const lines = await this.orm.searchRead("pos.order.line", [["id", "in", lineIds]], ["product_id", "qty", "order_id"]);
 
-                // Extract unique product IDs to fetch categories
-                // Extract unique product IDs to fetch categories
-                console.error("Error loading orders:", e);
-                this.notification.add("Failed to load orders", { type: "danger" });
+                // Extract unique product IDs
+                const productIds = [...new Set(lines.map(l => l.product_id[0]))];
+                let productsMap = {}; // Map ProductID -> [CategoryIDs]
+
+                if (productIds.length > 0) {
+                    // Step 1: Fetch product_tmpl_id from product.product
+                    const products = await this.orm.searchRead("product.product", [["id", "in", productIds]], ["product_tmpl_id"]);
+
+                    // Step 2: Extract template IDs
+                    const templateIds = [...new Set(products.map(p => p.product_tmpl_id[0]))];
+
+                    // Step 3: Fetch pos_categ_ids from product.template
+                    // NOTE: using pos_categ_ids (Many2many) for newer Odoo versions
+                    const templates = await this.orm.searchRead("product.template", [["id", "in", templateIds]], ["pos_categ_ids"]);
+
+                    // Step 4: Map Template ID -> Category IDs (Array)
+                    const templateMap = {};
+                    templates.forEach(t => templateMap[t.id] = t.pos_categ_ids || []);
+
+                    // Step 5: Map Product ID -> Category IDs (Array)
+                    products.forEach(p => {
+                        const tmplId = p.product_tmpl_id[0];
+                        productsMap[p.id] = templateMap[tmplId] || [];
+                    });
+                }
+
+                // Prepare filtering set
+                const allowedCategoryIds = this.state.currentDisplayConfig.pos_category_ids;
+                const filterCategories = allowedCategoryIds && allowedCategoryIds.length > 0;
+                console.log("Filtering Enabled:", filterCategories, "Allowed Categories:", allowedCategoryIds);
+
+                const linesMap = {};
+                lines.forEach(l => linesMap[l.id] = l);
+
+                const processedOrders = [];
+
+                for (const order of orders) {
+                    const expandedLines = [];
+                    for (const lineId of order.lines) {
+                        const line = linesMap[lineId];
+                        if (!line) continue;
+
+                        // Category Filter Logic
+                        if (filterCategories) {
+                            const pId = line.product_id[0];
+                            const productCategs = productsMap[pId] || [];
+
+                            // Check if ANY of the product's categories are in the allowed list
+                            const hasAllowedCategory = productCategs.some(cId => allowedCategoryIds.includes(cId));
+
+                            if (!hasAllowedCategory) {
+                                // console.log(`Skipping Line: Product ${line.product_id[1]} (Cats: ${productCategs}) not in Allowed ${allowedCategoryIds}`);
+                                continue;
+                            }
+                        }
+                        expandedLines.push(line);
+                    }
+
+                    // Only include order if it has lines relevant to this display
+                    if (expandedLines.length > 0) {
+                        processedOrders.push({
+                            id: order.id,
+                            name: order.pos_reference || order.name,
+                            table: '',
+                            date_order: order.date_order,
+                            lines: expandedLines
+                        });
+                    }
+                }
+
+                console.log("Processed Orders for Display:", processedOrders.length);
+                this.state.orders = processedOrders;
+
+            } else {
+                this.state.orders = [];
             }
+
+        } catch (e) {
+            console.error("Error loading orders:", e);
+            this.notification.add("Failed to load orders", { type: "danger" });
         }
+    }
 
     onNewOrder(payload) {
-            if (this.state.selectedDisplayId) {
-                this.loadOrders();
-                this.playSound();
-                this.notification.add(`New Order: ${payload.name || ''}`, { type: "success" });
-            }
+        if (this.state.selectedDisplayId) {
+            this.loadOrders();
+            this.playSound();
+            this.notification.add(`New Order: ${payload.name || ''}`, { type: "success" });
         }
+    }
 
-        playSound() {
-            if (!this.config.enableSound) return;
-            if (window.speechSynthesis) {
-                const msg = new SpeechSynthesisUtterance("New Order");
-                window.speechSynthesis.speak(msg);
-            }
+    playSound() {
+        if (!this.config.enableSound) return;
+        if (window.speechSynthesis) {
+            const msg = new SpeechSynthesisUtterance("New Order");
+            window.speechSynthesis.speak(msg);
         }
+    }
 
     // --- Computed / Getters ---
 
     get aggregatedProducts() {
-            const counts = {};
-            for (const order of this.state.orders) {
-                for (const line of order.lines) {
-                    if (!line.product_id) continue;
-                    const pName = line.product_id[1];
-                    const pId = line.product_id[0];
-                    if (!counts[pId]) {
-                        counts[pId] = { id: pId, name: pName, qty: 0 };
-                    }
-                    counts[pId].qty += line.qty;
+        const counts = {};
+        for (const order of this.state.orders) {
+            for (const line of order.lines) {
+                if (!line.product_id) continue;
+                const pName = line.product_id[1];
+                const pId = line.product_id[0];
+                if (!counts[pId]) {
+                    counts[pId] = { id: pId, name: pName, qty: 0 };
                 }
+                counts[pId].qty += line.qty;
             }
-            return Object.values(counts).sort((a, b) => a.name.localeCompare(b.name));
         }
+        return Object.values(counts).sort((a, b) => a.name.localeCompare(b.name));
+    }
 
     get filteredOrders() {
-            if (!this.state.filterProduct) return this.state.orders;
-            return this.state.orders.filter(order =>
-                order.lines.some(line => line.product_id && line.product_id[0] === this.state.filterProduct)
-            );
-        }
-
-        // --- Actions ---
-
-        toggleFilter(productId) {
-            this.state.filterProduct = (this.state.filterProduct === productId) ? null : productId;
-        }
-
-        toggleAudio() {
-            this.state.audioEnabled = !this.state.audioEnabled;
-            if (this.state.audioEnabled) this.playSound();
-        }
+        if (!this.state.filterProduct) return this.state.orders;
+        return this.state.orders.filter(order =>
+            order.lines.some(line => line.product_id && line.product_id[0] === this.state.filterProduct)
+        );
     }
+
+    // --- Actions ---
+
+    toggleFilter(productId) {
+        this.state.filterProduct = (this.state.filterProduct === productId) ? null : productId;
+    }
+
+    toggleAudio() {
+        this.state.audioEnabled = !this.state.audioEnabled;
+        if (this.state.audioEnabled) this.playSound();
+    }
+}
 
 registry.category("actions").add("pos_kitchen_screen.main_view", KitchenMainComponent);
