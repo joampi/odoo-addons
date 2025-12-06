@@ -7,10 +7,31 @@
         <field name="target">fullscreen</field>
     </record>
 
-    <!-- Top Menu -->
+    <!-- Top Menu Root -->
     <menuitem id="menu_pos_kitchen_screen_root"
               name="Kitchen Screen"
-              action="action_pos_kitchen_screen"
               web_icon="pos_kitchen_screen,static/description/icon.png"
               sequence="10"/>
+
+    <!-- 1. Dashboard (The App) -->
+    <menuitem id="menu_pos_kitchen_screen_dashboard"
+              name="Dashboard"
+              parent="menu_pos_kitchen_screen_root"
+              action="action_pos_kitchen_screen"
+              sequence="1"/>
+
+    <!-- 2. Displays (Configuration) -->
+    <menuitem id="menu_pos_kitchen_display_mgmt"
+              name="Kitchen Displays"
+              parent="menu_pos_kitchen_screen_root"
+              action="pos_kitchen_screen.action_pos_kitchen_display"
+              sequence="10"/>
+
+    <!-- 3. Configuration (Settings) -->
+    <menuitem id="menu_pos_kitchen_settings"
+              name="Settings"
+              parent="menu_pos_kitchen_screen_root"
+              action="point_of_sale.action_pos_configuration"
+              groups="point_of_sale.group_pos_manager"
+              sequence="100"/>
 </odoo>

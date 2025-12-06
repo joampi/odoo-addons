@@ -139,11 +139,24 @@ class KitchenMainComponent extends Component {
 
     async selectDisplay(displayId) {
         try {
-            const displayConfig = await this.orm.searchRead("pos.kitchen.display", [["id", "=", displayId]], ["name", "pos_config_ids", "pos_category_ids"], { limit: 1 });
+            // Fetch configuration including new SLA settings
+            const displayConfig = await this.orm.searchRead(
+                "pos.kitchen.display",
+                [["id", "=", displayId]],
+                ["name", "pos_config_ids", "pos_category_ids", "kitchen_sla_warning", "kitchen_sla_critical", "enable_sound_notifications"],
+                { limit: 1 }
+            );
 
             if (displayConfig && displayConfig.length) {
+                const conf = displayConfig[0];
                 this.state.selectedDisplayId = displayId;
-                this.state.currentDisplayConfig = displayConfig[0];
+                this.state.currentDisplayConfig = conf;
+
+                // Override Global Config with Local Display Config
+                this.config.slaWarning = conf.kitchen_sla_warning || this.config.slaWarning;
+                this.config.slaCritical = conf.kitchen_sla_critical || this.config.slaCritical;
+                this.config.enableSound = conf.enable_sound_notifications;
+
                 browser.localStorage.setItem('pos_kitchen_display_id', displayId);
 
                 // Clear order list and reload
@@ -159,6 +172,12 @@ class KitchenMainComponent extends Component {
             console.error("Error selecting display:", e);
             this.state.selectedDisplayId = null;
         }
+    }
+
+    closeScreen() {
+        // Return to Backend Dashboard
+        // In Odoo, this usually means going back in history or reloading the page without the specific action
+        window.history.back();
     }
 
     async forgetDisplay() {
