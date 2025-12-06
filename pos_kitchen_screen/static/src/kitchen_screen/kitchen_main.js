@@ -3,6 +3,7 @@
 import { Component, useState, onWillStart, onMounted, onWillUnmount, useEffect } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { browser } from "@web/core/browser/browser";
 const { DateTime } = luxon;
 
 /**
@@ -20,7 +21,7 @@ class KitchenOrderCard extends Component {
     setup() {
         this.state = useState({
             durationText: "00:00",
-            statusRequest: 'normal', // normal, warning, critical
+            statusRequest: 'normal',
         });
 
         this.updateTimer = this.updateTimer.bind(this);
@@ -37,12 +38,8 @@ class KitchenOrderCard extends Component {
 
     updateTimer() {
         const now = DateTime.now();
-        // Assuming date_order is ISO string or fetched as such. 
-        // If it's pure Odoo string, might need parsing. 
-        // For mock data/standard flow, we handle ISO or standard Odoo datetime string.
         let orderDate = DateTime.fromISO(this.props.order.date_order);
         if (!orderDate.isValid) {
-            // Fallback for Odoo server usage if not ISO
             orderDate = DateTime.fromSQL(this.props.order.date_order);
         }
 
@@ -77,42 +74,47 @@ class KitchenMainComponent extends Component {
 
         this.state = useState({
             orders: [],
+            availableDisplays: [], // List of pos.kitchen.display
+            selectedDisplayId: null, // ID of currently selected display
+            currentDisplayConfig: null, // Full object of selected display
             filterProduct: null,
             audioEnabled: false,
         });
 
+        // Global Config (SLA)
         this.config = {
-            slaWarning: 15, // Default
-            slaCritical: 30, // Default
+            slaWarning: 15,
+            slaCritical: 30,
             enableSound: true
         };
 
-        // Load Config and Orders
+        // Load Config and Initial State
         onWillStart(async () => {
-            await this.loadConfig();
-            await this.loadOrders();
+            await this.loadGlobalConfig();
+
+            // multiple screens support
+            const savedDisplayId = browser.localStorage.getItem('pos_kitchen_display_id');
+            if (savedDisplayId) {
+                await this.selectDisplay(parseInt(savedDisplayId));
+            } else {
+                await this.loadAvailableDisplays();
+            }
         });
 
-        // Bus Listener Setup for Odoo 16+ / 17 / 18+ (Generic)
-        // We use the effect to manage subscription lifecycle
         useEffect(() => {
             const channel = "kitchen_new_order";
-            // In real Odoo this requires backend to target this specific channel
-            // or we use 'pos.order' model updates if relying on standard bus
-            // For this task, strict implementation of "kitchen_new_order" event.
-
             const listener = (payload) => this.onNewOrder(payload);
-
             this.bus.subscribe("kitchen_new_order", listener);
-            this.bus.addChannel("kitchen_new_order"); // Ensure channel is added if needed by generic bus
-
+            this.bus.addChannel("kitchen_new_order");
             return () => {
                 this.bus.unsubscribe("kitchen_new_order", listener);
             };
         });
     }
 
-    async loadConfig() {
+    // --- Data Loading ---
+
+    async loadGlobalConfig() {
         try {
             const configs = await this.orm.searchRead("pos.config", [], ["kitchen_sla_warning", "kitchen_sla_critical", "enable_sound_notifications"], { limit: 1 });
             if (configs && configs.length) {
@@ -120,47 +122,126 @@ class KitchenMainComponent extends Component {
                 this.config.slaCritical = configs[0].kitchen_sla_critical;
                 this.config.enableSound = configs[0].enable_sound_notifications;
             }
-            // Ensure static audio file exists or use browser synth
-            // Using browser synth for reliability without asset file
-            if (window.speechSynthesis) {
-                const msg = new SpeechSynthesisUtterance("New Order");
-                window.speechSynthesis.speak(msg);
-            } else {
-                // Placeholder for actual file
-                console.log("Playing sound...");
-            }
         } catch (e) {
-            console.error("Error loading config:", e);
-            this.notification.add("Failed to load kitchen config", { type: "danger" });
+            console.error("Error loading global config:", e);
         }
     }
 
-    async loadOrders() {
+    async loadAvailableDisplays() {
         try {
-            // Fetch open orders. Filter by state (paid/invoiced/done).
-            // Simplification: We fetch last 20 orders to mimic active queue.
+            const displays = await this.orm.searchRead("pos.kitchen.display", [], ["name"], { order: "name asc" });
+            this.state.availableDisplays = displays;
+        } catch (e) {
+            console.error("Error loading displays:", e);
+            this.notification.add("Could not load display list.", { type: "danger" });
+        }
+    }
+
+    async selectDisplay(displayId) {
+        try {
+            const displayConfig = await this.orm.searchRead("pos.kitchen.display", [["id", "=", displayId]], ["name", "pos_config_ids", "pos_category_ids"], { limit: 1 });
+
+            if (displayConfig && displayConfig.length) {
+                this.state.selectedDisplayId = displayId;
+                this.state.currentDisplayConfig = displayConfig[0];
+                browser.localStorage.setItem('pos_kitchen_display_id', displayId);
+
+                // Clear order list and reload
+                this.state.orders = [];
+                await this.loadOrders();
+            } else {
+                // Invalid ID or deleted, revert to selection
+                browser.localStorage.removeItem('pos_kitchen_display_id');
+                this.state.selectedDisplayId = null;
+                await this.loadAvailableDisplays();
+            }
+        } catch (e) {
+            console.error("Error selecting display:", e);
+            this.state.selectedDisplayId = null;
+        }
+    }
+
+    async forgetDisplay() {
+        browser.localStorage.removeItem('pos_kitchen_display_id');
+        this.state.selectedDisplayId = null;
+        this.state.currentDisplayConfig = null;
+        this.state.orders = [];
+        await this.loadAvailableDisplays();
+    }
+
+    async loadOrders() {
+        if (!this.state.selectedDisplayId) return;
+
+        try {
             const domain = [['state', 'in', ['paid', 'done', 'invoiced']]];
 
-            const orders = await this.orm.searchRead("pos.order", domain, ["name", "pos_reference", "table", "date_order", "lines"], { limit: 20, order: "date_order desc" });
+            // Filter by POS Config Source
+            const allowedConfigIds = this.state.currentDisplayConfig.pos_config_ids;
+            if (allowedConfigIds && allowedConfigIds.length > 0) {
+                domain.push(['config_id', 'in', allowedConfigIds]);
+            }
+
+            const orders = await this.orm.searchRead("pos.order", domain, ["name", "pos_reference", "date_order", "lines"], { limit: 20, order: "date_order desc" });
 
             // Collect all line IDs
             const lineIds = orders.flatMap(o => o.lines);
             if (lineIds.length) {
+                // We need 'product_id' (to check category) and 'qty'
+                // NOTE: To filter by category strictly, we need product.pos_categ_id. 
+                // searchRead on pos.order.line gives product_id as (id, name).
+                // We will fetch product info separately or rely on checking product_id if we have a way.
+                // Standard approach: Fetch lines, then Fetch Product Info for those lines.
+
                 const lines = await this.orm.searchRead("pos.order.line", [["id", "in", lineIds]], ["product_id", "qty", "order_id"]);
+
+                // Extract unique product IDs to fetch categories
+                const productIds = [...new Set(lines.map(l => l.product_id[0]))];
+                let productsMap = {};
+                if (productIds.length) {
+                    const products = await this.orm.searchRead("product.product", [["id", "in", productIds]], ["pos_categ_id"]);
+                    products.forEach(p => productsMap[p.id] = p.pos_categ_id ? p.pos_categ_id[0] : false);
+                }
+
+                // Prepare filtering set
+                const allowedCategoryIds = this.state.currentDisplayConfig.pos_category_ids;
+                const filterCategories = allowedCategoryIds && allowedCategoryIds.length > 0;
 
                 const linesMap = {};
                 lines.forEach(l => linesMap[l.id] = l);
 
-                this.state.orders = orders.map(order => {
-                    const expandedLines = order.lines.map(id => linesMap[id] || { id: id, product_id: [0, 'Unknown'], qty: 0 });
-                    return {
-                        id: order.id,
-                        name: order.pos_reference || order.name,
-                        table: order.table || '',
-                        date_order: order.date_order,
-                        lines: expandedLines
-                    };
-                });
+                const processedOrders = [];
+
+                for (const order of orders) {
+                    const expandedLines = [];
+                    for (const lineId of order.lines) {
+                        const line = linesMap[lineId];
+                        if (!line) continue;
+
+                        // Category Filter Logic
+                        if (filterCategories) {
+                            const pId = line.product_id[0];
+                            const cId = productsMap[pId];
+                            if (!allowedCategoryIds.includes(cId)) {
+                                continue; // Skip this line
+                            }
+                        }
+                        expandedLines.push(line);
+                    }
+
+                    // Only include order if it has lines relevant to this display
+                    if (expandedLines.length > 0) {
+                        processedOrders.push({
+                            id: order.id,
+                            name: order.pos_reference || order.name,
+                            table: '', // Removed table to avoid error
+                            date_order: order.date_order,
+                            lines: expandedLines
+                        });
+                    }
+                }
+
+                this.state.orders = processedOrders;
+
             } else {
                 this.state.orders = [];
             }
@@ -172,9 +253,11 @@ class KitchenMainComponent extends Component {
     }
 
     onNewOrder(payload) {
-        this.loadOrders();
-        this.playSound();
-        this.notification.add(`New Order: ${payload.name || ''}`, { type: "success" });
+        if (this.state.selectedDisplayId) {
+            this.loadOrders();
+            this.playSound();
+            this.notification.add(`New Order: ${payload.name || ''}`, { type: "success" });
+        }
     }
 
     playSound() {
@@ -182,8 +265,6 @@ class KitchenMainComponent extends Component {
         if (window.speechSynthesis) {
             const msg = new SpeechSynthesisUtterance("New Order");
             window.speechSynthesis.speak(msg);
-        } else {
-            console.log("Playing sound...");
         }
     }
 
@@ -215,18 +296,12 @@ class KitchenMainComponent extends Component {
     // --- Actions ---
 
     toggleFilter(productId) {
-        if (this.state.filterProduct === productId) {
-            this.state.filterProduct = null;
-        } else {
-            this.state.filterProduct = productId;
-        }
+        this.state.filterProduct = (this.state.filterProduct === productId) ? null : productId;
     }
 
     toggleAudio() {
         this.state.audioEnabled = !this.state.audioEnabled;
-        if (this.state.audioEnabled) {
-            this.playSound();
-        }
+        if (this.state.audioEnabled) this.playSound();
     }
 }
 

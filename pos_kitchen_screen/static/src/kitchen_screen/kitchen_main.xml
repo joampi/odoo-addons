@@ -4,60 +4,84 @@
     <!-- Main Component Template -->
     <t t-name="pos_kitchen_screen.KitchenMain">
         <div class="kitchen-screen-container">
-            <!-- Header -->
-            <div class="ks-header">
-                <div class="ks-brand">
-                    <i class="fa fa-cutlery me-2"/> Kitchen Station
-                </div>
-                <div class="ks-controls">
-                    <button class="btn btn-secondary ks-btn-audio" t-on-click="toggleAudio">
-                        <i t-att-class="state.audioEnabled ? 'fa fa-volume-up' : 'fa fa-volume-off'"/>
-                        <t t-if="!state.audioEnabled"> Enable Audio</t>
-                    </button>
-                    <div class="ks-clock">
-                        <!-- Simple clock could go here -->
+            <t t-if="!state.selectedDisplayId">
+                <!-- SELECTION SCREEN -->
+                <div class="ks-selection-screen">
+                    <div class="ks-selection-card">
+                        <h1>Select Kitchen Display</h1>
+                        <div class="ks-display-list">
+                            <t t-foreach="state.availableDisplays" t-as="disp" t-key="disp.id">
+                                <button class="btn btn-primary btn-lg w-100 mb-2" t-on-click="() => this.selectDisplay(disp.id)">
+                                    <t t-esc="disp.name"/>
+                                </button>
+                            </t>
+                            <t t-if="state.availableDisplays.length === 0">
+                                <p class="text-muted">No Displays Configured in Backend.</p>
+                            </t>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </t>
+            <t t-else="">
+                <!-- MAIN KITCHEN UI -->
+                <!-- Header -->
+                <div class="ks-header">
+                    <div class="ks-brand">
+                        <i class="fa fa-cutlery me-2"/> 
+                        <t t-if="state.currentDisplayConfig">
+                             <t t-esc="state.currentDisplayConfig.name"/>
+                        </t>
+                        <t t-else="">Kitchen Station</t>
+                    </div>
+                    <div class="ks-controls">
+                        <button class="btn btn-secondary ks-btn-audio me-2" t-on-click="toggleAudio">
+                            <i t-att-class="state.audioEnabled ? 'fa fa-volume-up' : 'fa fa-volume-off'"/>
+                        </button>
+                        <button class="btn btn-warning" t-on-click="forgetDisplay">
+                            <i class="fa fa-sign-out"/> Switch
+                        </button>
+                    </div>
+                </div>
 
-            <div class="ks-body">
-                <!-- LEFT SIDEBAR: Aggregation -->
-                <div class="ks-sidebar">
-                    <div class="ks-sidebar-title">
-                        PRODUCTION QUEUE
+                <div class="ks-body">
+                    <!-- LEFT SIDEBAR: Aggregation -->
+                    <div class="ks-sidebar">
+                        <div class="ks-sidebar-title">
+                            PRODUCTION QUEUE
+                        </div>
+                        <div class="ks-product-list">
+                            <t t-foreach="aggregatedProducts" t-as="product" t-key="product.id">
+                                <div class="ks-product-item" 
+                                     t-att-class="{ 'active': state.filterProduct === product.id }"
+                                     t-on-click="() => this.toggleFilter(product.id)">
+                                    <span class="ks-p-name"><t t-esc="product.name"/></span>
+                                    <span class="ks-p-qty badge rounded-pill bg-primary"><t t-esc="product.qty"/></span>
+                                </div>
+                            </t>
+                        </div>
                     </div>
-                    <div class="ks-product-list">
-                        <t t-foreach="aggregatedProducts" t-as="product" t-key="product.id">
-                            <div class="ks-product-item" 
-                                 t-att-class="{ 'active': state.filterProduct === product.id }"
-                                 t-on-click="() => this.toggleFilter(product.id)">
-                                <span class="ks-p-name"><t t-esc="product.name"/></span>
-                                <span class="ks-p-qty badge rounded-pill bg-primary"><t t-esc="product.qty"/></span>
+
+                    <!-- RIGHT GRID: Orders -->
+                    <div class="ks-grid">
+                        <t t-if="filteredOrders.length === 0">
+                            <div class="ks-empty-state">
+                                <i class="fa fa-check-circle"/> No Pending Orders
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <div class="ks-cards-wrapper">
+                                <t t-foreach="filteredOrders" t-as="order" t-key="order.id">
+                                    <KitchenOrderCard 
+                                        order="order" 
+                                        slaWarning="config.slaWarning" 
+                                        slaCritical="config.slaCritical" 
+                                    />
+                                </t>
                             </div>
                         </t>
                     </div>
                 </div>
-
-                <!-- RIGHT GRID: Orders -->
-                <div class="ks-grid">
-                    <t t-if="filteredOrders.length === 0">
-                        <div class="ks-empty-state">
-                            <i class="fa fa-check-circle"/> No Pending Orders
-                        </div>
-                    </t>
-                    <t t-else="">
-                        <div class="ks-cards-wrapper">
-                            <t t-foreach="filteredOrders" t-as="order" t-key="order.id">
-                                <KitchenOrderCard 
-                                    order="order" 
-                                    slaWarning="config.slaWarning" 
-                                    slaCritical="config.slaCritical" 
-                                />
-                            </t>
-                        </div>
-                    </t>
-                </div>
-            </div>
+            </t>
         </div>
     </t>
 

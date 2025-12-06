@@ -21,8 +21,10 @@ Features:
     'author': 'PabloBar',
     'depends': ['point_of_sale', 'web'],
     'data': [
+        'security/ir.model.access.csv',
         'views/kitchen_menu.xml',
         'views/res_config_settings_view.xml',
+        'views/pos_kitchen_display_view.xml',
     ],
     'assets': {
         'web.assets_backend': [

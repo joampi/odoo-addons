@@ -223,3 +223,37 @@
     font-family: monospace;
     font-size: 1.2rem;
 }
+
+/* SELECTION SCREEN */
+.ks-selection-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(44, 62, 80, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.ks-selection-card {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    width: 400px;
+    text-align: center;
+}
+
+.ks-selection-card h1 {
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.ks-display-list button {
+    font-size: 1.1rem;
+    padding: 12px;
+}
