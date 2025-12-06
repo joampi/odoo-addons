@@ -17,3 +17,8 @@ class PosConfig(models.Model):
         string='Enable Sound Notifications', 
         default=True
     )
+    enable_ai_agent = fields.Boolean(
+        string='Enable AI Kitchen Agent',
+        default=True,
+        help='Activates smart batching and customer insights in the Kitchen Screen.'
+    )

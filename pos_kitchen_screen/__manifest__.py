@@ -24,7 +24,7 @@ Features:
         'views/kitchen_menu.xml',
     ],
     'assets': {
-        'pos_kitchen_screen.assets': [
+        'web.assets_backend': [
             'pos_kitchen_screen/static/src/kitchen_screen/**/*',
         ],
     },

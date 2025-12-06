@@ -23,6 +23,20 @@
             <div class="ks-body">
                 <!-- LEFT SIDEBAR: Aggregation -->
                 <div class="ks-sidebar">
+                    <!-- AI AGENT SECTION -->
+                    <t t-if="config.enableAi and state.agentData.batchSuggestions.length > 0">
+                        <div class="ks-sidebar-title ai-title">
+                            <i class="fa fa-magic"/> AI CHEF SAYS:
+                        </div>
+                        <div class="ks-ai-suggestions">
+                            <t t-foreach="state.agentData.batchSuggestions" t-as="suggestion" t-key="suggestion.id">
+                                <div class="ks-ai-message">
+                                    <t t-esc="suggestion.message"/>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+
                     <div class="ks-sidebar-title">
                         PRODUCTION QUEUE
                     </div>
@@ -51,7 +65,9 @@
                                 <KitchenOrderCard 
                                     order="order" 
                                     slaWarning="config.slaWarning" 
-                                    slaCritical="config.slaCritical" 
+                                    slaCritical="config.slaCritical"
+                                    onHeaderClick="() => this.showCustomerInsights(order)"
+                                    aiEnabled="config.enableAi" 
                                 />
                             </t>
                         </div>
@@ -64,8 +80,13 @@
     <!-- Order Card Template -->
     <t t-name="pos_kitchen_screen.KitchenOrderCard">
         <div class="ks-card" t-att-class="state.statusRequest">
-            <div class="ks-card-header">
-                <div class="ks-order-name"><t t-esc="props.order.name"/></div>
+            <div class="ks-card-header" t-on-click="props.onHeaderClick" t-att-style="props.aiEnabled ? 'cursor:pointer' : ''">
+                <div class="ks-order-name">
+                    <t t-esc="props.order.name"/>
+                    <t t-if="props.aiEnabled">
+                        <i class="fa fa-info-circle ms-2 text-info" title="Click for AI Insights"/>
+                    </t>
+                </div>
                 <div class="ks-table-name" t-if="props.order.table"><t t-esc="props.order.table"/></div>
             </div>
             <div class="ks-card-body">

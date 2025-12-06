@@ -1,6 +1,8 @@
 /** @odoo-module **/
 
-import { Component, useState, onWillStart, onMounted, onWillUnmount, useEffect } from "@odoo/owl";
+import { Component, useState, onWillStart, onMounted, onWillUnmount, useEffect, xml } from "@odoo/owl";
+
+
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { DateTime } from "@web/core/l10n/dates";
@@ -74,51 +76,56 @@ class KitchenMainComponent extends Component {
         this.orm = useService("orm");
         this.bus = useService("bus_service");
         this.notification = useService("notification");
+        this.dialog = useService("dialog");
 
         this.state = useState({
             orders: [],
             filterProduct: null,
             audioEnabled: false,
+            agentData: {
+                batchSuggestions: [],
+            }
         });
 
         this.config = {
-            slaWarning: 15, // Default
-            slaCritical: 30, // Default
-            enableSound: true
+            slaWarning: 15,
+            slaCritical: 30,
+            enableSound: true,
+            enableAi: true,
         };
 
-        // Load Config and Orders
         onWillStart(async () => {
             await this.loadConfig();
             await this.loadOrders();
         });
 
-        // Bus Listener Setup for Odoo 16+ / 17 / 18+ (Generic)
-        // We use the effect to manage subscription lifecycle
         useEffect(() => {
-            const channel = "kitchen_new_order";
-            // In real Odoo this requires backend to target this specific channel
-            // or we use 'pos.order' model updates if relying on standard bus
-            // For this task, strict implementation of "kitchen_new_order" event.
-
             const listener = (payload) => this.onNewOrder(payload);
-
             this.bus.subscribe("kitchen_new_order", listener);
-            this.bus.addChannel("kitchen_new_order"); // Ensure channel is added if needed by generic bus
-
+            this.bus.addChannel("kitchen_new_order");
             return () => {
                 this.bus.unsubscribe("kitchen_new_order", listener);
             };
+        });
+
+        useEffect(() => {
+            const interval = setInterval(() => {
+                if (this.config.enableAi) {
+                    this.checkSmartBatching();
+                }
+            }, 10000);
+            return () => clearInterval(interval);
         });
     }
 
     async loadConfig() {
         try {
-            const configs = await this.orm.searchRead("pos.config", [], ["kitchen_sla_warning", "kitchen_sla_critical", "enable_sound_notifications"], { limit: 1 });
+            const configs = await this.orm.searchRead("pos.config", [], ["kitchen_sla_warning", "kitchen_sla_critical", "enable_sound_notifications", "enable_ai_agent"], { limit: 1 });
             if (configs && configs.length) {
                 this.config.slaWarning = configs[0].kitchen_sla_warning;
                 this.config.slaCritical = configs[0].kitchen_sla_critical;
                 this.config.enableSound = configs[0].enable_sound_notifications;
+                this.config.enableAi = configs[0].enable_ai_agent;
             }
         } catch (e) {
             console.warn("Could not load POS Config, using defaults. Error:", e);
@@ -126,19 +133,12 @@ class KitchenMainComponent extends Component {
     }
 
     async loadOrders() {
-        // MOCK DATA implementation as backend logic for fetching orders wasn't requested 
-        // but UI needs to show something.
-        // In production: replace with this.orm.searchRead('pos.order', [['state', 'in', ['paid', 'invoiced']]], ...)
-        // or a custom controller.
-
+        // MOCK DATA implementation
         const now = DateTime.now();
-
         this.state.orders = [
             {
-                id: 1,
-                name: 'Order 0001',
-                table: 'Table 1',
-                date_order: now.minus({ minutes: 5, seconds: 10 }).toISO(),
+                id: 1, partner_id: [1, 'Azure Interior'],
+                name: 'Order 0001', table: 'Table 1', date_order: now.minus({ minutes: 5, seconds: 10 }).toISO(),
                 lines: [
                     { id: 1, product_id: [10, 'Hamburguesa'], qty: 2 },
                     { id: 2, product_id: [11, 'Patatas Fritas'], qty: 1 },
@@ -146,25 +146,22 @@ class KitchenMainComponent extends Component {
                 ]
             },
             {
-                id: 2,
-                name: 'Order 0002',
-                table: 'Table 3',
-                date_order: now.minus({ minutes: 16 }).toISO(), // Should be Warning
+                id: 2, partner_id: [2, 'Deco Addict'],
+                name: 'Order 0002', table: 'Table 3', date_order: now.minus({ minutes: 16 }).toISO(),
                 lines: [
                     { id: 4, product_id: [10, 'Hamburguesa'], qty: 1 },
                     { id: 5, product_id: [13, 'Helado'], qty: 1 },
                 ]
             },
             {
-                id: 3,
-                name: 'Order 0003',
-                table: 'T-TakeAway',
-                date_order: now.minus({ minutes: 32 }).toISO(), // Should be Critical
+                id: 3, partner_id: [3, 'Gemini Furniture'],
+                name: 'Order 0003', table: 'T-TakeAway', date_order: now.minus({ minutes: 32 }).toISO(),
                 lines: [
                     { id: 6, product_id: [11, 'Patatas Fritas'], qty: 5 },
                 ]
             },
         ];
+        this.checkSmartBatching();
     }
 
     onNewOrder(payload) {
@@ -183,6 +180,7 @@ class KitchenMainComponent extends Component {
 
         this.playSound();
         this.notification.add("New Order in Kitchen!", { type: "success" });
+        this.checkSmartBatching();
     }
 
     playSound() {
@@ -197,6 +195,63 @@ class KitchenMainComponent extends Component {
         } else {
             // Placeholder for actual file
             console.log("Playing sound...");
+        }
+    }
+
+    // --- AI Agent Methods ---
+
+    checkSmartBatching() {
+        if (!this.state.orders.length) return;
+
+        const counts = {};
+        for (const order of this.state.orders) {
+            for (const line of order.lines) {
+                const pId = line.product_id[0];
+                if (!counts[pId]) counts[pId] = { id: pId, name: line.product_id[1], qty: 0 };
+                counts[pId].qty += line.qty;
+            }
+        }
+
+        // Logic: Suggest batch if Qty >= 3
+        this.state.agentData.batchSuggestions = Object.values(counts)
+            .filter(item => item.qty >= 3)
+            .map(item => ({
+                ...item,
+                message: `🔥 High Demand: Cook ${item.qty}x ${item.name} together!`
+            }));
+    }
+
+    async showCustomerInsights(order) {
+        if (!this.config.enableAi || !order.partner_id) return;
+
+        try {
+            const partnerId = order.partner_id[0];
+            const data = await this.orm.call("pos.order", "get_customer_history_summary", [partnerId]);
+
+            if (data) {
+                this.dialog.add(class extends Component {
+                    static template = xml`
+                        <div class="o_dialog">
+                            <div class="modal-header">
+                                <h4 class="modal-title">🤖 AI Agent Insight: ${data.partner_name}</h4>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Sentiment:</strong> ${data.ai_sentiment}</p>
+                                <p><strong>Favorite:</strong> ${data.favorite_dish}</p>
+                                <p><strong>Hint:</strong> ${data.ai_note}</p>
+                                <hr/>
+                                <small>Based on ${data.total_orders} past orders.</small>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-primary" t-on-click="props.close">Close</button>
+                            </div>
+                        </div>
+                    `;
+                    static props = ["close"];
+                });
+            }
+        } catch (e) {
+            console.error("AI Agent Error:", e);
         }
     }
 
