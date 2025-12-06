@@ -192,11 +192,11 @@ class KitchenMainComponent extends Component {
         if (!this.state.selectedDisplayId) return;
 
         try {
-            // Filter by Date (Last 24 hours) to avoid showing old orders
-            const yesterday = DateTime.now().minus({ days: 1 }).toFormat("yyyy-MM-dd HH:mm:ss");
+            // Filter by Date (Last 72 hours) to avoid showing very old orders but allow recent tests
+            const dateLimit = DateTime.now().minus({ hours: 72 }).toFormat("yyyy-MM-dd HH:mm:ss");
             const domain = [
-                ['state', 'in', ['paid', 'done', 'invoiced']],
-                ['date_order', '>=', yesterday]
+                ['state', 'in', ['draft', 'paid', 'done', 'invoiced']],
+                ['date_order', '>=', dateLimit]
             ];
 
             // Filter by POS Config Source
