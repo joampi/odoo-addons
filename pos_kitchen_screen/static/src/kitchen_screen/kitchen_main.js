@@ -214,11 +214,29 @@ class KitchenMainComponent extends Component {
                 const lines = await this.orm.searchRead("pos.order.line", [["id", "in", lineIds]], ["product_id", "qty", "order_id"]);
 
                 // Extract unique product IDs to fetch categories
+                // Extract unique product IDs to fetch categories
                 const productIds = [...new Set(lines.map(l => l.product_id[0]))];
                 let productsMap = {};
                 if (productIds.length) {
-                    const products = await this.orm.searchRead("product.product", [["id", "in", productIds]], ["pos_categ_id"]);
-                    products.forEach(p => productsMap[p.id] = p.pos_categ_id ? p.pos_categ_id[0] : false);
+                    // Step 1: Fetch product_tmpl_id from product.product
+                    // Because 'pos_categ_id' might not be available on 'product.product' in this version.
+                    const products = await this.orm.searchRead("product.product", [["id", "in", productIds]], ["product_tmpl_id"]);
+
+                    // Step 2: Extract template IDs
+                    const templateIds = [...new Set(products.map(p => p.product_tmpl_id[0]))];
+
+                    // Step 3: Fetch pos_categ_id from product.template
+                    const templates = await this.orm.searchRead("product.template", [["id", "in", templateIds]], ["pos_categ_id"]);
+
+                    // Step 4: Map Template ID -> Category ID
+                    const templateMap = {};
+                    templates.forEach(t => templateMap[t.id] = t.pos_categ_id ? t.pos_categ_id[0] : false);
+
+                    // Step 5: Map Product ID -> Category ID
+                    products.forEach(p => {
+                        const tmplId = p.product_tmpl_id[0];
+                        productsMap[p.id] = templateMap[tmplId];
+                    });
                 }
 
                 // Prepare filtering set
