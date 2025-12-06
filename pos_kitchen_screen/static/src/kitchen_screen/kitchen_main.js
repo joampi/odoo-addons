@@ -3,7 +3,7 @@
 import { Component, useState, onWillStart, onMounted, onWillUnmount, useEffect } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
-import { DateTime } from "@web/core/l10n/dates";
+const { DateTime } = luxon;
 
 /**
  * KitchenOrderCard Component
