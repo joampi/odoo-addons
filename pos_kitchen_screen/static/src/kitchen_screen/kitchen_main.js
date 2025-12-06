@@ -17,6 +17,8 @@ class KitchenOrderCard extends Component {
         slaWarning: Number,
         slaCritical: Number,
         onClickLine: Function,
+        onResetOrder: { type: Function, optional: true },
+        onClearOrder: { type: Function, optional: true },
     };
 
     setup() {
