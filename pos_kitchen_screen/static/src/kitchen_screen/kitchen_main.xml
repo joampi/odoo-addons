@@ -89,6 +89,7 @@
                         </t>
                         <t t-else="">
                             <div class="ks-cards-wrapper">
+                                <t t-foreach="filteredOrders" t-as="order" t-key="order.id">
                                     <KitchenOrderCard 
                                         order="order" 
                                         slaWarning="config.slaWarning" 
