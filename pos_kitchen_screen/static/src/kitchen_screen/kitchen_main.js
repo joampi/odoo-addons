@@ -200,7 +200,9 @@ class KitchenMainComponent extends Component {
                 domain.push(['config_id', 'in', allowedConfigIds]);
             }
 
+            console.log("Loading orders with domain:", domain);
             const orders = await this.orm.searchRead("pos.order", domain, ["name", "pos_reference", "date_order", "lines"], { limit: 20, order: "date_order desc" });
+            console.log("Fetched orders:", orders.length, orders);
 
             // Collect all line IDs
             const lineIds = orders.flatMap(o => o.lines);
@@ -215,86 +217,62 @@ class KitchenMainComponent extends Component {
 
                 // Extract unique product IDs to fetch categories
                 // Extract unique product IDs to fetch categories
-                const productIds = [...new Set(lines.map(l => l.product_id[0]))];
-                let productsMap = {};
-                if (productIds.length) {
-                    // Step 1: Fetch product_tmpl_id from product.product
-                    // Because 'pos_categ_id' might not be available on 'product.product' in this version.
-                    // Only include order if it has lines relevant to this display
-                    if (expandedLines.length > 0) {
-                        processedOrders.push({
-                            id: order.id,
-                            name: order.pos_reference || order.name,
-                            table: '', // Removed table to avoid error
-                            date_order: order.date_order,
-                            lines: expandedLines
-                        });
-                    }
-                }
-
-                this.state.orders = processedOrders;
-
-            } else {
-                this.state.orders = [];
+                console.error("Error loading orders:", e);
+                this.notification.add("Failed to load orders", { type: "danger" });
             }
-
-        } catch (e) {
-            console.error("Error loading orders:", e);
-            this.notification.add("Failed to load orders", { type: "danger" });
         }
-    }
 
     onNewOrder(payload) {
-        if (this.state.selectedDisplayId) {
-            this.loadOrders();
-            this.playSound();
-            this.notification.add(`New Order: ${payload.name || ''}`, { type: "success" });
+            if (this.state.selectedDisplayId) {
+                this.loadOrders();
+                this.playSound();
+                this.notification.add(`New Order: ${payload.name || ''}`, { type: "success" });
+            }
         }
-    }
 
-    playSound() {
-        if (!this.config.enableSound) return;
-        if (window.speechSynthesis) {
-            const msg = new SpeechSynthesisUtterance("New Order");
-            window.speechSynthesis.speak(msg);
+        playSound() {
+            if (!this.config.enableSound) return;
+            if (window.speechSynthesis) {
+                const msg = new SpeechSynthesisUtterance("New Order");
+                window.speechSynthesis.speak(msg);
+            }
         }
-    }
 
     // --- Computed / Getters ---
 
     get aggregatedProducts() {
-        const counts = {};
-        for (const order of this.state.orders) {
-            for (const line of order.lines) {
-                if (!line.product_id) continue;
-                const pName = line.product_id[1];
-                const pId = line.product_id[0];
-                if (!counts[pId]) {
-                    counts[pId] = { id: pId, name: pName, qty: 0 };
+            const counts = {};
+            for (const order of this.state.orders) {
+                for (const line of order.lines) {
+                    if (!line.product_id) continue;
+                    const pName = line.product_id[1];
+                    const pId = line.product_id[0];
+                    if (!counts[pId]) {
+                        counts[pId] = { id: pId, name: pName, qty: 0 };
+                    }
+                    counts[pId].qty += line.qty;
                 }
-                counts[pId].qty += line.qty;
             }
+            return Object.values(counts).sort((a, b) => a.name.localeCompare(b.name));
         }
-        return Object.values(counts).sort((a, b) => a.name.localeCompare(b.name));
-    }
 
     get filteredOrders() {
-        if (!this.state.filterProduct) return this.state.orders;
-        return this.state.orders.filter(order =>
-            order.lines.some(line => line.product_id && line.product_id[0] === this.state.filterProduct)
-        );
-    }
+            if (!this.state.filterProduct) return this.state.orders;
+            return this.state.orders.filter(order =>
+                order.lines.some(line => line.product_id && line.product_id[0] === this.state.filterProduct)
+            );
+        }
 
-    // --- Actions ---
+        // --- Actions ---
 
-    toggleFilter(productId) {
-        this.state.filterProduct = (this.state.filterProduct === productId) ? null : productId;
-    }
+        toggleFilter(productId) {
+            this.state.filterProduct = (this.state.filterProduct === productId) ? null : productId;
+        }
 
-    toggleAudio() {
-        this.state.audioEnabled = !this.state.audioEnabled;
-        if (this.state.audioEnabled) this.playSound();
+        toggleAudio() {
+            this.state.audioEnabled = !this.state.audioEnabled;
+            if (this.state.audioEnabled) this.playSound();
+        }
     }
-}
 
 registry.category("actions").add("pos_kitchen_screen.main_view", KitchenMainComponent);
