@@ -1,0 +1,208 @@
+/* Kitchen Screen Styles */
+
+.kitchen-screen-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    background-color: #f0f2f5;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+}
+
+/* Header */
+.ks-header {
+    height: 60px;
+    background-color: #2c3e50;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+.ks-brand {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* Body Layout */
+.ks-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.ks-sidebar {
+    width: 25%;
+    background-color: #fff;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.ks-sidebar-title {
+    padding: 15px;
+    font-weight: bold;
+    color: #6c757d;
+    border-bottom: 2px solid #f8f9fa;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+.ks-product-list {
+    flex: 1;
+}
+
+.ks-product-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid #f1f1f1;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.ks-product-item:hover {
+    background-color: #e9ecef;
+}
+
+.ks-product-item.active {
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196f3;
+}
+
+.ks-p-name {
+    font-weight: 500;
+    color: #343a40;
+}
+
+.ks-p-qty {
+    font-size: 1rem;
+    padding: 5px 10px;
+}
+
+
+/* Grid Area */
+.ks-grid {
+    width: 75%;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #eef2f6;
+}
+
+.ks-cards-wrapper {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.ks-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 2rem;
+    color: #adb5bd;
+}
+
+/* CARDS */
+.ks-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s;
+    border-top: 5px solid #28a745; /* Default Green */
+}
+
+/* SLA Warning */
+.ks-card.warning {
+    border-top-color: #ffc107;
+    border-color: #ffc107; /* Full border hint */
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.2);
+}
+
+.ks-card.warning .ks-timer {
+    color: #d39e00;
+    font-weight: bold;
+}
+
+/* SLA Critical */
+.ks-card.critical {
+    border-top-color: #dc3545;
+    border-color: #dc3545;
+    animation: blink-border 2s infinite;
+}
+
+.ks-card.critical .ks-timer {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+@keyframes blink-border {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); border-color: #dc3545;}
+    50% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); border-color: #ff6b6b;}
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); border-color: #dc3545;}
+}
+
+
+.ks-card-header {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f1f1f1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ks-order-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.ks-table-name {
+    font-size: 0.9rem;
+    color: #6c757d;
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.ks-card-body {
+    flex: 1;
+    padding: 15px;
+    font-size: 0.95rem;
+}
+
+.ks-order-line {
+    display: flex;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.ks-line-qty {
+    font-weight: bold;
+    min-width: 30px;
+    color: #495057;
+}
+
+.ks-card-footer {
+    padding: 10px 15px;
+    background-color: #fcfcfc;
+    border-top: 1px solid #f1f1f1;
+    text-align: right;
+}
+
+.ks-timer {
+    font-family: monospace;
+    font-size: 1.2rem;
+}

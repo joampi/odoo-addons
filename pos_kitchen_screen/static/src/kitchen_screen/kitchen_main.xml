@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Main Component Template -->
+    <t t-name="pos_kitchen_screen.KitchenMain">
+        <div class="kitchen-screen-container">
+            <!-- Header -->
+            <div class="ks-header">
+                <div class="ks-brand">
+                    <i class="fa fa-cutlery me-2"/> Kitchen Station
+                </div>
+                <div class="ks-controls">
+                    <button class="btn btn-secondary ks-btn-audio" t-on-click="toggleAudio">
+                        <i t-att-class="state.audioEnabled ? 'fa fa-volume-up' : 'fa fa-volume-off'"/>
+                        <t t-if="!state.audioEnabled"> Enable Audio</t>
+                    </button>
+                    <div class="ks-clock">
+                        <!-- Simple clock could go here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="ks-body">
+                <!-- LEFT SIDEBAR: Aggregation -->
+                <div class="ks-sidebar">
+                    <div class="ks-sidebar-title">
+                        PRODUCTION QUEUE
+                    </div>
+                    <div class="ks-product-list">
+                        <t t-foreach="aggregatedProducts" t-as="product" t-key="product.id">
+                            <div class="ks-product-item" 
+                                 t-att-class="{ 'active': state.filterProduct === product.id }"
+                                 t-on-click="() => this.toggleFilter(product.id)">
+                                <span class="ks-p-name"><t t-esc="product.name"/></span>
+                                <span class="ks-p-qty badge rounded-pill bg-primary"><t t-esc="product.qty"/></span>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- RIGHT GRID: Orders -->
+                <div class="ks-grid">
+                    <t t-if="filteredOrders.length === 0">
+                        <div class="ks-empty-state">
+                            <i class="fa fa-check-circle"/> No Pending Orders
+                        </div>
+                    </t>
+                    <t t-else="">
+                        <div class="ks-cards-wrapper">
+                            <t t-foreach="filteredOrders" t-as="order" t-key="order.id">
+                                <KitchenOrderCard 
+                                    order="order" 
+                                    slaWarning="config.slaWarning" 
+                                    slaCritical="config.slaCritical" 
+                                />
+                            </t>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <!-- Order Card Template -->
+    <t t-name="pos_kitchen_screen.KitchenOrderCard">
+        <div class="ks-card" t-att-class="state.statusRequest">
+            <div class="ks-card-header">
+                <div class="ks-order-name"><t t-esc="props.order.name"/></div>
+                <div class="ks-table-name" t-if="props.order.table"><t t-esc="props.order.table"/></div>
+            </div>
+            <div class="ks-card-body">
+                <t t-foreach="props.order.lines" t-as="line" t-key="line.id">
+                    <div class="ks-order-line">
+                        <span class="ks-line-qty"><t t-esc="line.qty"/>x</span>
+                        <span class="ks-line-name"><t t-esc="line.product_id[1]"/></span>
+                    </div>
+                </t>
+            </div>
+            <div class="ks-card-footer">
+                <div class="ks-timer">
+                    <i class="fa fa-clock-o"/> <span t-esc="state.durationText"/>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Client Action -->
+    <record id="action_pos_kitchen_screen" model="ir.actions.client">
+        <field name="name">Kitchen Screen</field>
+        <field name="tag">pos_kitchen_screen.main_view</field>
+        <field name="target">fullscreen</field>
+    </record>
+
+    <!-- Top Menu -->
+    <menuitem id="menu_pos_kitchen_screen_root"
+              name="Kitchen Screen"
+              action="action_pos_kitchen_screen"
+              web_icon="pos_kitchen_screen,static/description/icon.png"
+              sequence="10"/>
+</odoo>
