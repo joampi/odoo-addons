@@ -44,8 +44,11 @@ class KitchenOrderCard extends Component {
         if (!orderDate.isValid) {
             orderDate = DateTime.fromISO(this.props.order.date_order, { zone: 'utc' });
         }
-        orderDate = orderDate.toLocal(); // Convert to browser local time
 
+        // Debug Log (First time only? No, maybe once per minute or just once)
+        // console.log("Timer Debug:", this.props.order.name, "Raw:", this.props.order.date_order, "UTC:", orderDate.toISO(), "Local:", orderDate.toLocal().toISO(), "Now:", now.toISO());
+
+        orderDate = orderDate.toLocal(); // Convert to browser local time
 
         const diff = now.diff(orderDate, ['minutes', 'seconds']);
         const minutes = Math.floor(diff.minutes);
@@ -133,10 +136,13 @@ class KitchenMainComponent extends Component {
             currentIndex = stageList.findIndex(s => s.id === currentStageId);
         }
 
-        // Advance
+        // Advance or Cycle
         let nextStage = null;
         if (currentIndex < stageList.length - 1) {
             nextStage = stageList[currentIndex + 1];
+        } else {
+            // Cycle back to the first stage (Reset Line)
+            nextStage = stageList[0];
         }
 
         if (nextStage) {
@@ -149,67 +155,14 @@ class KitchenMainComponent extends Component {
                 this.checkOrderCompletion(order);
             } catch (e) {
                 console.error("Failed to update line stage", e);
-                // Revert? (Complex, skipping for now)
             }
         }
     }
 
     async checkOrderCompletion(order) {
-        // Logic: All lines must be in a 'done' stage or match the NEXT order stage to advance order?
-        // User Rule: "change stage when all lines are tachadas" (crossed out)
-        // Implementation: We track Order Stage vs Line Stage.
-
-        // Simple approach first:
-        // If ALL lines are 'Done' (last stage), mark Order as Done.
-        // If ALL lines are 'Ready' (or higher), mark Order as Ready.
-
+        // Logic: Check if all lines are in a "Done" stage.
         const lines = order.lines;
         if (!lines.length) return;
-
-        // Find the lowest stage among all lines
-        // We use sequence to compare
-        let minStageSequence = 999999;
-        let minStageId = null;
-
-        for (const line of lines) {
-            const lStageId = line.kitchen_stage_id ? line.kitchen_stage_id[0] : 0;
-            const stageObj = this.state.stages.find(s => s.id === lStageId) || this.state.stages[0]; // Default to first stage
-
-            if (stageObj && stageObj.sequence < minStageSequence) {
-                minStageSequence = stageObj.sequence;
-                minStageId = stageObj.id;
-            }
-        }
-
-        // The Order Status should be the "lowest common denominator" of its lines
-        // e.g. If Line A is Prep, Line B is New -> Order is New.
-        // If Line A is Prep, Line B is Prep -> Order is Prep.
-
-        // However, we also have 'kitchen_state' on order which is a selection.
-        // Let's assume we map Stage Names to Selection or just use the Stage logic implicitly.
-        // For now, let's just save the computed stage if we were using an Order Stage model.
-        // But we used a Selection Field on Order: new, in_progress, ready, done.
-
-        // Map Stage -> State
-        // New -> new
-        // Prep -> in_progress
-        // Ready -> ready
-        // Done -> done
-
-        // We need to map minStageId to a selection value.
-        // Let's deduce it from the stage name or sequence.
-        // Ideally we would update the Order's kitchen_state based on this.
-
-        /* 
-           Simplified Logic asked by User: 
-           "Order changes stage when all lines are X"
-           This implies Order Stage = Min(Line Stages)
-        */
-
-        // Update Order State in Backend??
-        // Currently 'kitchen_state' is 'new', 'in_progress'...
-        // Let's just focus on the VISUAL for now, or updating the selection if needed.
-        // Actually, if all lines are DONE, we should hide the order.
 
         const allDone = lines.every(l => {
             const sId = l.kitchen_stage_id ? l.kitchen_stage_id[0] : 0;
@@ -218,11 +171,49 @@ class KitchenMainComponent extends Component {
         });
 
         if (allDone) {
-            // Mark Order as Done / Hide
-            await this.orm.write("pos.order", [order.id], { kitchen_state: 'done' });
-            // Remove from local list
-            this.state.orders = this.state.orders.filter(o => o.id !== order.id);
+            // Mark Order as Done in Backend
+            if (order.kitchen_state !== 'done') {
+                order.kitchen_state = 'done'; // Optimistic
+                await this.orm.write("pos.order", [order.id], { kitchen_state: 'done' });
+            }
+            // DO NOT REMOVE from local state yet. Allow user to clear it manually.
+        } else {
+            // If we cycled back, maybe set it to in_progress or new?
+            // For now, let's just ensure it's NOT 'done' if lines aren't done.
+            if (order.kitchen_state === 'done') {
+                order.kitchen_state = 'in_progress';
+                await this.orm.write("pos.order", [order.id], { kitchen_state: 'in_progress' });
+            }
         }
+    }
+
+    async resetOrder(order) {
+        if (!this.state.stages.length) return;
+        const firstStage = this.state.stages[0];
+
+        // 1. Reset all lines locally
+        order.lines.forEach(l => {
+            l.kitchen_stage_id = [firstStage.id, firstStage.name];
+        });
+
+        // 2. Reset order state
+        order.kitchen_state = 'new';
+
+        // 3. Backend Update
+        // We need to write to all lines.
+        try {
+            const lineIds = order.lines.map(l => l.id);
+            await this.orm.write("pos.order.line", lineIds, { kitchen_stage_id: firstStage.id });
+            await this.orm.write("pos.order", [order.id], { kitchen_state: 'new' });
+        } catch (e) {
+            console.error("Failed to reset order", e);
+            this.notification.add("Failed to reset order", { type: "danger" });
+        }
+    }
+
+    async clearOrder(order) {
+        // Just remove from local view. It is already 'done' in backend.
+        this.state.orders = this.state.orders.filter(o => o.id !== order.id);
     }
 
     toggleSidebar() {
