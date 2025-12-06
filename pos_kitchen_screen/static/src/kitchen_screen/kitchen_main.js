@@ -220,51 +220,6 @@ class KitchenMainComponent extends Component {
                 if (productIds.length) {
                     // Step 1: Fetch product_tmpl_id from product.product
                     // Because 'pos_categ_id' might not be available on 'product.product' in this version.
-                    const products = await this.orm.searchRead("product.product", [["id", "in", productIds]], ["product_tmpl_id"]);
-
-                    // Step 2: Extract template IDs
-                    const templateIds = [...new Set(products.map(p => p.product_tmpl_id[0]))];
-
-                    // Step 3: Fetch pos_categ_id from product.template
-                    const templates = await this.orm.searchRead("product.template", [["id", "in", templateIds]], ["pos_categ_id"]);
-
-                    // Step 4: Map Template ID -> Category ID
-                    const templateMap = {};
-                    templates.forEach(t => templateMap[t.id] = t.pos_categ_id ? t.pos_categ_id[0] : false);
-
-                    // Step 5: Map Product ID -> Category ID
-                    products.forEach(p => {
-                        const tmplId = p.product_tmpl_id[0];
-                        productsMap[p.id] = templateMap[tmplId];
-                    });
-                }
-
-                // Prepare filtering set
-                const allowedCategoryIds = this.state.currentDisplayConfig.pos_category_ids;
-                const filterCategories = allowedCategoryIds && allowedCategoryIds.length > 0;
-
-                const linesMap = {};
-                lines.forEach(l => linesMap[l.id] = l);
-
-                const processedOrders = [];
-
-                for (const order of orders) {
-                    const expandedLines = [];
-                    for (const lineId of order.lines) {
-                        const line = linesMap[lineId];
-                        if (!line) continue;
-
-                        // Category Filter Logic
-                        if (filterCategories) {
-                            const pId = line.product_id[0];
-                            const cId = productsMap[pId];
-                            if (!allowedCategoryIds.includes(cId)) {
-                                continue; // Skip this line
-                            }
-                        }
-                        expandedLines.push(line);
-                    }
-
                     // Only include order if it has lines relevant to this display
                     if (expandedLines.length > 0) {
                         processedOrders.push({
