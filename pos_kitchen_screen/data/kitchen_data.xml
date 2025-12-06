@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="kitchen_stage_new" model="pos.kitchen.stage">
+        <field name="name">New</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="kitchen_stage_prep" model="pos.kitchen.stage">
+        <field name="name">Preparation</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="kitchen_stage_ready" model="pos.kitchen.stage">
+        <field name="name">Ready</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="kitchen_stage_done" model="pos.kitchen.stage">
+        <field name="name">Done</field>
+        <field name="sequence">40</field>
+        <field name="is_done_stage">True</field>
+        <field name="fold">True</field>
+    </record>
+</odoo>

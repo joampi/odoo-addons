@@ -1,7 +1,20 @@
-from odoo import models, api
+from odoo import models, fields, api
+
+class PosOrderLine(models.Model):
+    _inherit = 'pos.order.line'
+
+    kitchen_stage_id = fields.Many2one('pos.kitchen.stage', string="Kitchen Stage", copy=False)
+
 
 class PosOrder(models.Model):
     _inherit = 'pos.order'
+
+    kitchen_state = fields.Selection([
+        ('new', 'New'),
+        ('in_progress', 'In Progress'),
+        ('ready', 'Ready'),
+        ('done', 'Done')
+    ], string='Kitchen Status', default='new', index=True)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -24,8 +37,6 @@ class PosOrder(models.Model):
         Target Channel: 'kitchen_new_order'
         """
         domain = [('id', '=', order.id)]
-        # We fetch the same data the JS expects locally or we let JS fetch it.
-        # Sending a 'ping' is cleaner, JS refreshes data.
         payload = {
             'order_id': order.id,
             'name': order.name,

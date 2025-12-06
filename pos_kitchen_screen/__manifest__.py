@@ -25,6 +25,7 @@ Features:
         'views/kitchen_menu.xml',
         'views/res_config_settings_view.xml',
         'views/pos_kitchen_display_view.xml',
+        'data/kitchen_data.xml',
     ],
     'assets': {
         'web.assets_backend': [

@@ -3,7 +3,7 @@
 
     <!-- Main Component Template -->
     <t t-name="pos_kitchen_screen.KitchenMain">
-        <div class="kitchen-screen-container">
+        <div class="kitchen-screen-container" t-att-class="{ 'ks-sidebar-collapsed': state.sidebarCollapsed }">
             <t t-if="!state.selectedDisplayId">
                 <!-- SELECTION SCREEN -->
                 <div class="ks-selection-screen">
@@ -34,17 +34,27 @@
                 <div class="ks-header">
                     <div class="ks-brand">
                         <i class="fa fa-cutlery me-2"/> 
-                        <t t-if="state.currentDisplayConfig">
-                             <t t-esc="state.currentDisplayConfig.name"/>
-                        </t>
-                        <t t-else="">Kitchen Station</t>
+                        <span class="d-none d-md-inline" t-if="state.currentDisplayConfig"><t t-esc="state.currentDisplayConfig.name"/></span>
+                        <span class="d-none d-md-inline" t-else="">Kitchen</span>
                     </div>
+                    
+                    <!-- STAGE FILTERS -->
+                    <div class="ks-filters btn-group mx-3">
+                         <t t-foreach="state.stages" t-as="stage" t-key="stage.id">
+                             <button class="btn btn-sm" 
+                                     t-att-class="state.filterStage === stage.id ? 'btn-primary' : 'btn-outline-secondary'"
+                                     t-on-click="() => this.toggleStageFilter(stage.id)">
+                                 <t t-esc="stage.name"/>
+                             </button>
+                         </t>
+                    </div>
+
                     <div class="ks-controls">
                         <button class="btn btn-secondary ks-btn-audio me-2" t-on-click="toggleAudio">
                             <i t-att-class="state.audioEnabled ? 'fa fa-volume-up' : 'fa fa-volume-off'"/>
                         </button>
                         <button class="btn btn-warning" t-on-click="forgetDisplay">
-                            <i class="fa fa-sign-out"/> Switch
+                            <i class="fa fa-sign-out"/>
                         </button>
                     </div>
                 </div>
@@ -52,10 +62,13 @@
                 <div class="ks-body">
                     <!-- LEFT SIDEBAR: Aggregation -->
                     <div class="ks-sidebar">
-                        <div class="ks-sidebar-title">
-                            PRODUCTION QUEUE
+                        <div class="ks-sidebar-title d-flex justify-content-between align-items-center">
+                            <span t-if="!state.sidebarCollapsed">QUEUE</span>
+                            <button class="btn btn-sm btn-link text-white p-0" t-on-click="toggleSidebar">
+                                <i t-att-class="state.sidebarCollapsed ? 'fa fa-chevron-right' : 'fa fa-chevron-left'"/>
+                            </button>
                         </div>
-                        <div class="ks-product-list">
+                        <div class="ks-product-list" t-if="!state.sidebarCollapsed">
                             <t t-foreach="aggregatedProducts" t-as="product" t-key="product.id">
                                 <div class="ks-product-item" 
                                      t-att-class="{ 'active': state.filterProduct === product.id }"
@@ -80,7 +93,8 @@
                                     <KitchenOrderCard 
                                         order="order" 
                                         slaWarning="config.slaWarning" 
-                                        slaCritical="config.slaCritical" 
+                                        slaCritical="config.slaCritical"
+                                        onClickLine="(o, l) => this.clickLine(o, l)"
                                     />
                                 </t>
                             </div>
@@ -100,9 +114,17 @@
             </div>
             <div class="ks-card-body">
                 <t t-foreach="props.order.lines" t-as="line" t-key="line.id">
-                    <div class="ks-order-line">
+                    <div class="ks-order-line" t-on-click="() => props.onClickLine(props.order, line)" style="cursor: pointer;">
                         <span class="ks-line-qty"><t t-esc="line.qty"/>x</span>
-                        <span class="ks-line-name"><t t-esc="line.product_id[1]"/></span>
+                        <span class="ks-line-name" 
+                              t-att-style="line.kitchen_stage_id and line.kitchen_stage_id[1] === 'Done' ? 'text-decoration: line-through; opacity: 0.6;' : ''">
+                            <t t-esc="line.product_id[1]"/>
+                        </span>
+                        <t t-if="line.kitchen_stage_id">
+                            <span class="badge bg-secondary ms-auto" style="font-size: 0.7em;">
+                                <t t-esc="line.kitchen_stage_id[1]"/>
+                            </span>
+                        </t>
                     </div>
                 </t>
             </div>
