@@ -66,6 +66,74 @@ class KitchenOrderCard extends Component {
  * KitchenMainComponent
  * Root component for the Kitchen Screen Application.
  */
+/** @odoo-module **/
+
+import { Component, useState, onWillStart, onMounted, onWillUnmount, useEffect } from "@odoo/owl";
+import { registry } from "@web/core/registry";
+import { useService } from "@web/core/utils/hooks";
+const { DateTime } = luxon;
+
+/**
+ * KitchenOrderCard Component
+ * Represents a single order card with timer logic.
+ */
+class KitchenOrderCard extends Component {
+    static template = "pos_kitchen_screen.KitchenOrderCard";
+    static props = {
+        order: Object,
+        slaWarning: Number,
+        slaCritical: Number,
+    };
+
+    setup() {
+        this.state = useState({
+            durationText: "00:00",
+            statusRequest: 'normal', // normal, warning, critical
+        });
+
+        this.updateTimer = this.updateTimer.bind(this);
+
+        onMounted(() => {
+            this.updateTimer();
+            this.interval = setInterval(this.updateTimer, 1000);
+        });
+
+        onWillUnmount(() => {
+            if (this.interval) clearInterval(this.interval);
+        });
+    }
+
+    updateTimer() {
+        const now = DateTime.now();
+        // Assuming date_order is ISO string or fetched as such. 
+        // If it's pure Odoo string, might need parsing. 
+        // For mock data/standard flow, we handle ISO or standard Odoo datetime string.
+        let orderDate = DateTime.fromISO(this.props.order.date_order);
+        if (!orderDate.isValid) {
+            // Fallback for Odoo server usage if not ISO
+            orderDate = DateTime.fromSQL(this.props.order.date_order);
+        }
+
+        const diff = now.diff(orderDate, ['minutes', 'seconds']);
+        const minutes = Math.floor(diff.minutes);
+        const seconds = Math.floor(diff.seconds);
+
+        this.state.durationText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+        if (minutes >= this.props.slaCritical) {
+            this.state.statusRequest = 'critical';
+        } else if (minutes >= this.props.slaWarning) {
+            this.state.statusRequest = 'warning';
+        } else {
+            this.state.statusRequest = 'normal';
+        }
+    }
+}
+
+/**
+ * KitchenMainComponent
+ * Root component for the Kitchen Screen Application.
+ */
 class KitchenMainComponent extends Component {
     static template = "pos_kitchen_screen.KitchenMain";
     static components = { KitchenOrderCard };
@@ -120,82 +188,69 @@ class KitchenMainComponent extends Component {
                 this.config.slaCritical = configs[0].kitchen_sla_critical;
                 this.config.enableSound = configs[0].enable_sound_notifications;
             }
+            // Ensure static audio file exists or use browser synth
+            // Using browser synth for reliability without asset file
+            if (window.speechSynthesis) {
+                const msg = new SpeechSynthesisUtterance("New Order");
+                window.speechSynthesis.speak(msg);
+            } else {
+                // Placeholder for actual file
+                console.log("Playing sound...");
+            }
         } catch (e) {
-            console.warn("Could not load POS Config, using defaults. Error:", e);
+            console.error("Error loading config:", e);
+            this.notification.add("Failed to load kitchen config", { type: "danger" });
         }
     }
 
     async loadOrders() {
-        // MOCK DATA implementation as backend logic for fetching orders wasn't requested 
-        // but UI needs to show something.
-        // In production: replace with this.orm.searchRead('pos.order', [['state', 'in', ['paid', 'invoiced']]], ...)
-        // or a custom controller.
+        try {
+            // Fetch open orders. Filter by state (paid/invoiced/done).
+            // Simplification: We fetch last 20 orders to mimic active queue.
+            const domain = [['state', 'in', ['paid', 'done', 'invoiced']]];
 
-        const now = DateTime.now();
+            const orders = await this.orm.searchRead("pos.order", domain, ["name", "pos_reference", "table", "date_order", "lines"], { limit: 20, order: "date_order desc" });
 
-        this.state.orders = [
-            {
-                id: 1,
-                name: 'Order 0001',
-                table: 'Table 1',
-                date_order: now.minus({ minutes: 5, seconds: 10 }).toISO(),
-                lines: [
-                    { id: 1, product_id: [10, 'Hamburguesa'], qty: 2 },
-                    { id: 2, product_id: [11, 'Patatas Fritas'], qty: 1 },
-                    { id: 3, product_id: [12, 'Coca Cola'], qty: 2 },
-                ]
-            },
-            {
-                id: 2,
-                name: 'Order 0002',
-                table: 'Table 3',
-                date_order: now.minus({ minutes: 16 }).toISO(), // Should be Warning
-                lines: [
-                    { id: 4, product_id: [10, 'Hamburguesa'], qty: 1 },
-                    { id: 5, product_id: [13, 'Helado'], qty: 1 },
-                ]
-            },
-            {
-                id: 3,
-                name: 'Order 0003',
-                table: 'T-TakeAway',
-                date_order: now.minus({ minutes: 32 }).toISO(), // Should be Critical
-                lines: [
-                    { id: 6, product_id: [11, 'Patatas Fritas'], qty: 5 },
-                ]
-            },
-        ];
+            // Collect all line IDs
+            const lineIds = orders.flatMap(o => o.lines);
+            if (lineIds.length) {
+                const lines = await this.orm.searchRead("pos.order.line", [["id", "in", lineIds]], ["product_id", "qty", "order_id"]);
+
+                const linesMap = {};
+                lines.forEach(l => linesMap[l.id] = l);
+
+                this.state.orders = orders.map(order => {
+                    const expandedLines = order.lines.map(id => linesMap[id] || { id: id, product_id: [0, 'Unknown'], qty: 0 });
+                    return {
+                        id: order.id,
+                        name: order.pos_reference || order.name,
+                        table: order.table || '',
+                        date_order: order.date_order,
+                        lines: expandedLines
+                    };
+                });
+            } else {
+                this.state.orders = [];
+            }
+
+        } catch (e) {
+            console.error("Error loading orders:", e);
+            this.notification.add("Failed to load orders", { type: "danger" });
+        }
     }
 
     onNewOrder(payload) {
-        // Payload handling would go here.
-        // For now, we simulate a refresh or adding the payload
-        // this.loadOrders(); 
-
-        // Add a dummy order for demo effect if payload is empty/test
-        const now = DateTime.now();
-        this.state.orders.push({
-            id: Math.random(),
-            name: 'New Order',
-            date_order: now.toISO(),
-            lines: [{ id: 99, product_id: [99, 'New Item'], qty: 1 }]
-        });
-
+        this.loadOrders();
         this.playSound();
-        this.notification.add("New Order in Kitchen!", { type: "success" });
+        this.notification.add(`New Order: ${payload.name || ''}`, { type: "success" });
     }
 
     playSound() {
         if (!this.config.enableSound) return;
-
-        // Simple beep or local file
-        // Ensure static audio file exists or use browser synth
-        // Using browser synth for reliability without asset file
         if (window.speechSynthesis) {
             const msg = new SpeechSynthesisUtterance("New Order");
             window.speechSynthesis.speak(msg);
         } else {
-            // Placeholder for actual file
             console.log("Playing sound...");
         }
     }
@@ -206,7 +261,7 @@ class KitchenMainComponent extends Component {
         const counts = {};
         for (const order of this.state.orders) {
             for (const line of order.lines) {
-                // line.product_id is [id, name]
+                if (!line.product_id) continue;
                 const pName = line.product_id[1];
                 const pId = line.product_id[0];
                 if (!counts[pId]) {
@@ -215,16 +270,13 @@ class KitchenMainComponent extends Component {
                 counts[pId].qty += line.qty;
             }
         }
-        // Return array sorted by name
         return Object.values(counts).sort((a, b) => a.name.localeCompare(b.name));
     }
 
     get filteredOrders() {
         if (!this.state.filterProduct) return this.state.orders;
-
-        // filterProduct is the Product ID
         return this.state.orders.filter(order =>
-            order.lines.some(line => line.product_id[0] === this.state.filterProduct)
+            order.lines.some(line => line.product_id && line.product_id[0] === this.state.filterProduct)
         );
     }
 
@@ -240,9 +292,8 @@ class KitchenMainComponent extends Component {
 
     toggleAudio() {
         this.state.audioEnabled = !this.state.audioEnabled;
-        // User interaction allows subsequent auto-play
         if (this.state.audioEnabled) {
-            this.playSound(); // Test sound
+            this.playSound();
         }
     }
 }

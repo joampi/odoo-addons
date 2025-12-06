@@ -22,6 +22,7 @@ Features:
     'depends': ['point_of_sale', 'web'],
     'data': [
         'views/kitchen_menu.xml',
+        'views/res_config_settings_view.xml',
     ],
     'assets': {
         'web.assets_backend': [
