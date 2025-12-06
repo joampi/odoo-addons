@@ -192,7 +192,12 @@ class KitchenMainComponent extends Component {
         if (!this.state.selectedDisplayId) return;
 
         try {
-            const domain = [['state', 'in', ['paid', 'done', 'invoiced']]];
+            // Filter by Date (Last 24 hours) to avoid showing old orders
+            const yesterday = DateTime.now().minus({ days: 1 }).toFormat("yyyy-MM-dd HH:mm:ss");
+            const domain = [
+                ['state', 'in', ['paid', 'done', 'invoiced']],
+                ['date_order', '>=', yesterday]
+            ];
 
             // Filter by POS Config Source
             const allowedConfigIds = this.state.currentDisplayConfig.pos_config_ids;
