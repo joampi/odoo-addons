@@ -97,6 +97,7 @@
                                 <t t-foreach="filteredOrders" t-as="order" t-key="order.id">
                                     <KitchenOrderCard 
                                         order="order" 
+                                        serverTimeOffset="state.serverTimeOffset"
                                         slaWarning="config.slaWarning" 
                                         slaCritical="config.slaCritical"
                                         onClickLine="(o, l) => this.clickLine(o, l)"

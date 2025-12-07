@@ -20,6 +20,7 @@ class KitchenOrderCard extends Component {
         onResetOrder: { type: Function, optional: true },
         onClearOrder: { type: Function, optional: true },
         onSelectOrder: { type: Function, optional: true },
+        serverTimeOffset: { type: Number, optional: true },
     };
 
     setup() {
@@ -41,19 +42,18 @@ class KitchenOrderCard extends Component {
     }
 
     updateTimer() {
-        const now = DateTime.now();
+        // Adjust ClientNow to align with Server UTC clock using offset
+        const offset = this.props.serverTimeOffset || 0;
+        const nowUTC = DateTime.now().toUTC().minus({ milliseconds: offset });
+
         // DATE FIX: Parse Odoo UTC string as UTC
         let orderDate = DateTime.fromSQL(this.props.order.date_order, { zone: 'utc' });
         if (!orderDate.isValid) {
             orderDate = DateTime.fromISO(this.props.order.date_order, { zone: 'utc' });
         }
 
-        // Debug Log (First time only? No, maybe once per minute or just once)
-        // console.log("Timer Debug:", this.props.order.name, "Raw:", this.props.order.date_order, "UTC:", orderDate.toISO(), "Local:", orderDate.toLocal().toISO(), "Now:", now.toISO());
-
-        orderDate = orderDate.toLocal(); // Convert to browser local time
-
-        const diff = now.diff(orderDate, ['minutes', 'seconds']);
+        // Compare using UTC context
+        const diff = nowUTC.diff(orderDate, ['minutes', 'seconds']);
         const minutes = Math.floor(diff.minutes);
         const seconds = Math.floor(diff.seconds);
 
@@ -89,10 +89,11 @@ class KitchenMainComponent extends Component {
             selectedDisplayId: null, // ID of currently selected display
             currentDisplayConfig: null, // Full object of selected display
             filterProduct: null,
-            filterStage: null, // ID of stage to filter by
+
             selectedOrder: null, // For Popup
             sidebarCollapsed: false,
             audioEnabled: false,
+            serverTimeOffset: 0, // milliseconds
         });
 
         // Global Config (SLA)
@@ -104,6 +105,19 @@ class KitchenMainComponent extends Component {
 
         // Load Config and Initial State
         onWillStart(async () => {
+            // Sync Server Time
+            try {
+                const serverTimeStr = await this.orm.call("pos.kitchen.display", "get_server_time", []);
+                // serverTimeStr is UTC string 'YYYY-MM-DD HH:mm:ss'
+                const serverTime = DateTime.fromSQL(serverTimeStr, { zone: 'utc' });
+                const clientTime = DateTime.now().toUTC();
+                // Offset = how much Client is AHEAD of Server (if positive)
+                this.state.serverTimeOffset = clientTime.diff(serverTime).as('milliseconds');
+                console.log("Time Sync - Server:", serverTime.toISO(), "| Client (UTC):", clientTime.toISO(), "| Offset (ms):", this.state.serverTimeOffset);
+            } catch (e) {
+                console.error("Failed to sync server time:", e);
+            }
+
             await this.loadGlobalConfig();
             await this.loadStages();
 

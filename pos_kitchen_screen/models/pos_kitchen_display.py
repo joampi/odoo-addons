@@ -31,3 +31,8 @@ class PosKitchenDisplay(models.Model):
         string='Enable Sound Notifications', 
         default=True
     )
+
+    @models.model
+    def get_server_time(self):
+        """Returns the current server time in UTC."""
+        return fields.Datetime.now()
