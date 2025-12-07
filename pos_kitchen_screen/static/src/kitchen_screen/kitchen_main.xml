@@ -132,22 +132,41 @@
                              <div class="text-danger"><t t-esc="state.selectedOrder.note"/></div>
                          </div>
                          
-                         <table class="table table-striped">
+                         <table class="table table-striped align-middle">
                              <thead>
                                  <tr>
-                                     <th>Qty</th>
-                                     <th>Product</th>
-                                     <th>Stage</th>
+                                     <th style="width: 10%;">Qty</th>
+                                     <th style="width: 40%;">Product</th>
+                                     <th style="width: 30%;">Stage</th>
+                                     <th style="width: 20%;">Actions</th>
                                  </tr>
                              </thead>
                              <tbody>
                                  <tr t-foreach="state.selectedOrder.lines" t-as="line" t-key="line.id">
                                      <td><strong t-esc="line.qty"/></td>
-                                     <td><span t-esc="line.product_id[1]"/></td>
-                                     <td>
-                                         <span t-if="line.kitchen_stage_id" class="badge bg-info">
+                                     
+                                     <!-- Product Name: Click to Toggle Stage -->
+                                     <td t-on-click="() => this.clickLine(state.selectedOrder, line)" style="cursor: pointer;">
+                                        <span t-esc="line.product_id[1]"/>
+                                        <div t-if="line.kitchen_stage_id and line.kitchen_stage_id[1] === 'Done'" class="text-muted small">
+                                            (Tap to Reset)
+                                        </div>
+                                     </td>
+                                     
+                                     <!-- Stage Badge: Click to Toggle Stage -->
+                                     <td t-on-click="() => this.clickLine(state.selectedOrder, line)" style="cursor: pointer;">
+                                         <span t-if="line.kitchen_stage_id" 
+                                               t-att-class="line.kitchen_stage_id[1] === 'Done' ? 'badge bg-success' : 'badge bg-info'">
                                              <t t-esc="line.kitchen_stage_id[1]"/>
                                          </span>
+                                     </td>
+                                     
+                                     <!-- Actions: Recipe Button -->
+                                     <td>
+                                         <button t-if="line.has_recipe" class="btn btn-sm btn-outline-dark" 
+                                                 t-on-click.stop="() => this.openRecipe(line)" title="View Recipe">
+                                             <i class="fa fa-book"/> Recipe
+                                         </button>
                                      </td>
                                  </tr>
                              </tbody>

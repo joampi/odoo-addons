@@ -363,18 +363,24 @@ class KitchenMainComponent extends Component {
                     // Step 2: Extract template IDs
                     const templateIds = [...new Set(products.map(p => p.product_tmpl_id[0]))];
 
-                    // Step 3: Fetch pos_categ_ids from product.template
+                    // Step 3: Fetch pos_categ_ids and recipe info from product.template
                     // NOTE: using pos_categ_ids (Many2many) for newer Odoo versions
-                    const templates = await this.orm.searchRead("product.template", [["id", "in", templateIds]], ["pos_categ_ids"]);
+                    const templates = await this.orm.searchRead("product.template", [["id", "in", templateIds]], ["pos_categ_ids", "has_recipe", "recipe_filename"]);
 
-                    // Step 4: Map Template ID -> Category IDs (Array)
+                    // Step 4: Map Template ID -> Category IDs (Array) & Recipe Info
                     const templateMap = {};
-                    templates.forEach(t => templateMap[t.id] = t.pos_categ_ids || []);
+                    const recipeInfoMap = {};
+                    templates.forEach(t => {
+                        templateMap[t.id] = t.pos_categ_ids || [];
+                        recipeInfoMap[t.id] = { has_recipe: t.has_recipe, recipe_filename: t.recipe_filename };
+                    });
 
-                    // Step 5: Map Product ID -> Category IDs (Array)
+                    // Step 5: Map Product ID -> Category IDs (Array) & Recipe Info
                     products.forEach(p => {
                         const tmplId = p.product_tmpl_id[0];
                         productsMap[p.id] = templateMap[tmplId] || [];
+                        const rInfo = recipeInfoMap[tmplId] || { has_recipe: false, recipe_filename: '' };
+                        productRecipeMap[p.id] = { ...rInfo, tmpl_id: tmplId };
                     });
                 }
 
@@ -411,6 +417,15 @@ class KitchenMainComponent extends Component {
                         if (!line.kitchen_stage_id && this.state.stages.length > 0) {
                             // Assign first stage visually if undefined
                             line.kitchen_stage_id = [this.state.stages[0].id, this.state.stages[0].name];
+                        }
+
+                        // Add Recipe Info
+                        // Use productRecipeMap which is in scope
+                        const rData = productRecipeMap[line.product_id[0]];
+                        if (rData && rData.has_recipe) {
+                            line.has_recipe = true;
+                            line.recipe_filename = rData.recipe_filename;
+                            line.product_tmpl_id = rData.tmpl_id;
                         }
 
                         expandedLines.push(line);
@@ -516,6 +531,17 @@ class KitchenMainComponent extends Component {
 
     closePopup() {
         this.state.selectedOrder = null;
+    }
+
+    openRecipe(line) {
+        if (!line.has_recipe || !line.recipe_filename) return;
+
+        // Construct standard Odoo attachment URL
+        // /web/content/product.product/{id}/recipe_file/{filename}
+        // or /web/content/product.template/{tmpl_id}/recipe_file/{filename}
+        // Since we stored it on template, use template
+        const url = `/web/content/product.template/${line.product_tmpl_id}/recipe_file/${line.recipe_filename}`;
+        window.open(url, '_blank');
     }
 
     toggleSidebar() {
