@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 class PosKitchenDisplay(models.Model):
     _name = 'pos.kitchen.display'
@@ -32,7 +32,7 @@ class PosKitchenDisplay(models.Model):
         default=True
     )
 
-    @models.model
+    @api.model
     def get_server_time(self):
         """Returns the current server time in UTC."""
         return fields.Datetime.now()
