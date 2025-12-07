@@ -12,7 +12,7 @@
                         <div class="ks-display-list">
                             <t t-foreach="state.availableDisplays" t-as="disp" t-key="disp.id">
                                 <button class="btn btn-primary btn-lg w-100 mb-2" t-on-click="() => this.selectDisplay(disp.id)">
-                                    <t t-esc="disp.name"/>
+                                    <t t-out="disp.name"/>
                                 </button>
                             </t>
                             <t t-if="state.availableDisplays.length === 0">
@@ -34,7 +34,7 @@
                 <div class="ks-header">
                     <div class="ks-brand">
                         <i class="fa fa-cutlery me-2"/> 
-                        <span class="d-none d-md-inline" t-if="state.currentDisplayConfig"><t t-esc="state.currentDisplayConfig.name"/></span>
+                        <span class="d-none d-md-inline" t-if="state.currentDisplayConfig"><t t-out="state.currentDisplayConfig.name"/></span>
                         <span class="d-none d-md-inline" t-else="">Kitchen</span>
                     </div>
                     
@@ -49,7 +49,7 @@
                              <button class="btn btn-sm" 
                                      t-att-class="state.filterStage === stage.id ? 'btn-primary' : 'btn-outline-secondary'"
                                      t-on-click="() => this.toggleStageFilter(stage.id)">
-                                 <t t-esc="stage.name"/>
+                                 <t t-out="stage.name"/>
                              </button>
                          </t>
                     </div>
@@ -78,8 +78,8 @@
                                 <div class="ks-product-item" 
                                      t-att-class="{ 'active': state.filterProduct === product.id }"
                                      t-on-click="() => this.toggleFilter(product.id)">
-                                    <span class="ks-p-name"><t t-esc="product.name"/></span>
-                                    <span class="ks-p-qty badge rounded-pill bg-primary"><t t-esc="product.qty"/></span>
+                                    <span class="ks-p-name"><t t-out="product.name"/></span>
+                                    <span class="ks-p-qty badge rounded-pill bg-primary"><t t-out="product.qty"/></span>
                                 </div>
                             </t>
                         </div>
@@ -119,18 +119,18 @@
                 <div class="ks-modal-content">
                     <div class="ks-modal-header">
                         <div class="ks-modal-title">
-                            <span t-esc="state.selectedOrder.name"/>
-                            <span t-if="state.selectedOrder.table" class="badge bg-secondary ms-2"><span t-esc="state.selectedOrder.table"/></span>
+                            <span t-out="state.selectedOrder.name"/>
+                            <span t-if="state.selectedOrder.table" class="badge bg-secondary ms-2"><span t-out="state.selectedOrder.table"/></span>
                         </div>
                         <button class="ks-modal-close" t-on-click="closePopup"><i class="fa fa-times"/></button>
                     </div>
                     <div class="ks-modal-body">
                          <div class="ks-info-section">
-                             <span class="ks-info-label">Time:</span> <span t-esc="state.selectedOrder.date_order"/>
+                             <span class="ks-info-label">Time:</span> <span t-out="state.selectedOrder.date_order"/>
                          </div>
                          <div class="ks-info-section" t-if="state.selectedOrder.note">
                              <div class="ks-info-label">Notes:</div>
-                             <div class="text-danger"><t t-esc="state.selectedOrder.note"/></div>
+                             <div class="text-danger"><t t-out="state.selectedOrder.note"/></div>
                          </div>
                          
                          <table class="table table-striped align-middle">
@@ -144,11 +144,11 @@
                              </thead>
                              <tbody>
                                  <tr t-foreach="state.selectedOrder.lines" t-as="line" t-key="line.id">
-                                     <td><strong t-esc="line.qty"/></td>
+                                     <td><strong t-out="line.qty"/></td>
                                      
                                      <!-- Product Name: Click to Toggle Stage -->
                                      <td t-on-click="() => this.clickLine(state.selectedOrder, line)" style="cursor: pointer;">
-                                        <span t-esc="line.product_id[1]"/>
+                                        <span t-out="line.product_id[1]"/>
                                         <div t-if="line.kitchen_stage_id and line.kitchen_stage_id[1] === 'Done'" class="text-muted small">
                                             (Tap to Reset)
                                         </div>
@@ -158,7 +158,7 @@
                                      <td t-on-click="() => this.clickLine(state.selectedOrder, line)" style="cursor: pointer;">
                                          <span t-if="line.kitchen_stage_id" 
                                                t-att-class="line.kitchen_stage_id[1] === 'Done' ? 'badge bg-success' : 'badge bg-info'">
-                                             <t t-esc="line.kitchen_stage_id[1]"/>
+                                             <t t-out="line.kitchen_stage_id[1]"/>
                                          </span>
                                      </td>
                                      
@@ -186,13 +186,13 @@
         <div class="ks-card" t-att-class="state.statusRequest">
             <div class="ks-card-header">
                 <div>
-                    <div class="ks-order-name"><t t-esc="props.order.name"/></div>
+                    <div class="ks-order-name"><t t-out="props.order.name"/></div>
                     <div class="ks-order-time text-muted" style="font-size: 0.8rem;">
-                        <i class="fa fa-calendar"/> <t t-esc="props.order.date_order"/>
+                        <i class="fa fa-calendar"/> <t t-out="props.order.date_order"/>
                     </div>
                 </div>
                 <div class="d-flex align-items-center">
-                    <div class="ks-table-name me-2" t-if="props.order.table"><t t-esc="props.order.table"/></div>
+                    <div class="ks-table-name me-2" t-if="props.order.table"><t t-out="props.order.table"/></div>
                     <button class="btn btn-sm btn-info text-white" t-on-click="() => props.onSelectOrder(props.order)">
                         <i class="fa fa-info-circle"/>
                     </button>
@@ -201,14 +201,14 @@
             <div class="ks-card-body">
                 <t t-foreach="props.order.lines" t-as="line" t-key="line.id">
                     <div class="ks-order-line" t-on-click="() => props.onClickLine(props.order, line)" style="cursor: pointer;">
-                        <span class="ks-line-qty"><t t-esc="line.qty"/>x</span>
+                        <span class="ks-line-qty"><t t-out="line.qty"/>x</span>
                         <span class="ks-line-name" 
                               t-att-style="line.kitchen_stage_id and line.kitchen_stage_id[1] === 'Done' ? 'text-decoration: line-through; opacity: 0.6;' : ''">
-                            <t t-esc="line.product_id[1]"/>
+                            <t t-out="line.product_id[1]"/>
                         </span>
                         <t t-if="line.kitchen_stage_id">
                             <span class="badge bg-secondary ms-auto" style="font-size: 0.7em;">
-                                <t t-esc="line.kitchen_stage_id[1]"/>
+                                <t t-out="line.kitchen_stage_id[1]"/>
                             </span>
                         </t>
                     </div>
@@ -216,7 +216,7 @@
             </div>
             <div class="ks-card-footer d-flex justify-content-between align-items-center">
                 <div class="ks-timer">
-                    <i class="fa fa-clock-o"/> <span t-esc="state.durationText"/>
+                    <i class="fa fa-clock-o"/> <span t-out="state.durationText"/>
                 </div>
                 <t t-if="props.order.kitchen_state === 'done'">
                     <div class="ks-actions">

@@ -390,6 +390,7 @@ class KitchenMainComponent extends Component {
                     });
 
                     // Step 5: Map Product ID -> Category IDs (Array) & Recipe Info
+                    const productRecipeMap = {};
                     products.forEach(p => {
                         const tmplId = p.product_tmpl_id[0];
                         productsMap[p.id] = templateMap[tmplId] || [];
