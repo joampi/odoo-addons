@@ -369,6 +369,7 @@ class KitchenMainComponent extends Component {
                 // Extract unique product IDs
                 const productIds = [...new Set(lines.map(l => l.product_id[0]))];
                 let productsMap = {}; // Map ProductID -> [CategoryIDs]
+                let productRecipeMap = {}; // Map ProductID -> Recipe Info
 
                 if (productIds.length > 0) {
                     // Step 1: Fetch product_tmpl_id from product.product
@@ -390,7 +391,6 @@ class KitchenMainComponent extends Component {
                     });
 
                     // Step 5: Map Product ID -> Category IDs (Array) & Recipe Info
-                    const productRecipeMap = {};
                     products.forEach(p => {
                         const tmplId = p.product_tmpl_id[0];
                         productsMap[p.id] = templateMap[tmplId] || [];
